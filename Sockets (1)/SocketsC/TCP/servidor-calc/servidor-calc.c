@@ -82,7 +82,7 @@ int main(int argc, char *argv[]){
 		res = htonl(res);
    		err = sendMessage(sc, (char *)&res, sizeof(int32_t));  // envÃ­a el resultado
 		if (err == -1) {
-			printf("Error en enviï¿½o\n");
+			printf("Error en envi­o\n");
 			close(sc);
 			continue;
 		}
