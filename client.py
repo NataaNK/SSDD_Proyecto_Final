@@ -1,194 +1,125 @@
-from enum import Enum
+import socket
+import sys
 import argparse
+from threading import Thread
 
-class client :
+def send_message(sock, message):
+    sock.sendall(f"{message}\0".encode())
 
-    # ******************** TYPES *********************
-    # *
-    # * @brief Return codes for the protocol methods
-    class RC(Enum) :
-        OK = 0
-        ERROR = 1
-        USER_ERROR = 2
+def receive_response(sock):
+    response = ""
+    while True:
+        chunk = sock.recv(1)
+        if chunk == b'\0':
+            break
+        response += chunk.decode()
+    return response
 
-    # ****************** ATTRIBUTES ******************
-    _server = None
-    _port = -1
+class P2PClient:
+    def __init__(self, server_ip, server_port):
+        self.server_ip = server_ip
+        self.server_port = server_port
 
-    # ******************** METHODS *******************
+    def connect_to_server(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.server_ip, int(self.server_port)))
 
+    def close_connection(self):
+        self.sock.close()
 
-    @staticmethod
-    def  register(user) :
-        #  Write your code here
-        return client.RC.ERROR
+    def register(self, username):
+        self.connect_to_server()
+        send_message(self.sock, f"REGISTER {username}")
+        result = receive_response(self.sock)
+        self.close_connection()
+        return result
 
-   
-    @staticmethod
-    def  unregister(user) :
-        #  Write your code here
-        return client.RC.ERROR
+    def unregister(self, username):
+        self.connect_to_server()
+        send_message(self.sock, f"UNREGISTER {username}")
+        result = receive_response(self.sock)
+        self.close_connection()
+        return result
 
+    def connect(self, username):
+        self.connect_to_server()
+        send_message(self.sock, f"CONNECT {username}")
+        result = receive_response(self.sock)
+        self.close_connection()
+        return result
 
-    
-    @staticmethod
-    def  connect(user) :
-        #  Write your code here
-        return client.RC.ERROR
+    def disconnect(self, username):
+        self.connect_to_server()
+        send_message(self.sock, f"DISCONNECT {username}")
+        result = receive_response(self.sock)
+        self.close_connection()
+        return result
 
+    def publish_content(self, username, file_name, description):
+        self.connect_to_server()
+        send_message(self.sock, f"PUBLISH {username} {file_name} {description}")
+        result = receive_response(self.sock)
+        self.close_connection()
+        return result
 
-    
-    @staticmethod
-    def  disconnect(user) :
-        #  Write your code here
-        return client.RC.ERROR
+    def delete_content(self, username, file_name):
+        self.connect_to_server()
+        send_message(self.sock, f"DELETE {username} {file_name}")
+        result = receive_response(self.sock)
+        self.close_connection()
+        return result
 
-    @staticmethod
-    def  publish(fileName,  description) :
-        #  Write your code here
-        return client.RC.ERROR
+    def list_users(self, username):
+        self.connect_to_server()
+        send_message(self.sock, f"LIST_USERS {username}")
+        result = receive_response(self.sock)
+        self.close_connection()
+        return result
 
-    @staticmethod
-    def  delete(fileName) :
-        #  Write your code here
-        return client.RC.ERROR
+    def list_content(self, username):
+        self.connect_to_server()
+        send_message(self.sock, f"LIST_CONTENT {username}")
+        result = receive_response(self.sock)
+        self.close_connection()
+        return result
 
-    @staticmethod
-    def  listusers() :
-        #  Write your code here
-        return client.RC.ERROR
+    def get_file(self, remote_username, file_name, local_file_name):
+        # This method would be responsible for peer-to-peer file transfers
+        pass
 
-    @staticmethod
-    def  listcontent(user) :
-        #  Write your code here
-        return client.RC.ERROR
+    def shell(self):
+        while True:
+            command = input("c> ").strip().split()
+            if not command:
+                continue
+            cmd = command[0].upper()
+            if cmd == "REGISTER" and len(command) == 2:
+                print(self.register(command[1]))
+            elif cmd == "UNREGISTER" and len(command) == 2:
+                print(self.unregister(command[1]))
+            elif cmd == "CONNECT" and len(command) == 2:
+                print(self.connect(command[1]))
+            elif cmd == "DISCONNECT" and len(command) == 2:
+                print(self.disconnect(command[1]))
+            elif cmd == "PUBLISH" and len(command) == 4:
+                print(self.publish_content(command[1], command[2], command[3]))
+            elif cmd == "DELETE" and len(command) == 3:
+                print(self.delete_content(command[1], command[2]))
+            elif cmd == "LIST_USERS" and len(command) == 2:
+                print(self.list_users(command[1]))
+            elif cmd == "LIST_CONTENT" and len(command) == 2:
+                print(self.list_content(command[1]))
+            elif cmd == "QUIT":
+                print("Exiting...")
+                break
+            else:
+                print("Unknown command or incorrect number of arguments")
 
-    @staticmethod
-    def  getfile(user,  remote_FileName,  local_FileName) :
-        #  Write your code here
-        return client.RC.ERROR
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Client for a P2P File Distribution System')
+    parser.add_argument('-s', '--server', required=True, help='Server IP address')
+    parser.add_argument('-p', '--port', required=True, type=int, help='Server port')
+    args = parser.parse_args()
 
-    # *
-    # **
-    # * @brief Command interpreter for the client. It calls the protocol functions.
-    @staticmethod
-    def shell():
-
-        while (True) :
-            try :
-                command = input("c> ")
-                line = command.split(" ")
-                if (len(line) > 0):
-
-                    line[0] = line[0].upper()
-
-                    if (line[0]=="REGISTER") :
-                        if (len(line) == 2) :
-                            client.register(line[1])
-                        else :
-                            print("Syntax error. Usage: REGISTER <userName>")
-
-                    elif(line[0]=="UNREGISTER") :
-                        if (len(line) == 2) :
-                            client.unregister(line[1])
-                        else :
-                            print("Syntax error. Usage: UNREGISTER <userName>")
-
-                    elif(line[0]=="CONNECT") :
-                        if (len(line) == 2) :
-                            client.connect(line[1])
-                        else :
-                            print("Syntax error. Usage: CONNECT <userName>")
-                    
-                    elif(line[0]=="PUBLISH") :
-                        if (len(line) >= 3) :
-                            #  Remove first two words
-                            description = ' '.join(line[2:])
-                            client.publish(line[1], description)
-                        else :
-                            print("Syntax error. Usage: PUBLISH <fileName> <description>")
-
-                    elif(line[0]=="DELETE") :
-                        if (len(line) == 2) :
-                            client.delete(line[1])
-                        else :
-                            print("Syntax error. Usage: DELETE <fileName>")
-
-                    elif(line[0]=="LIST_USERS") :
-                        if (len(line) == 1) :
-                            client.listusers()
-                        else :
-                            print("Syntax error. Use: LIST_USERS")
-
-                    elif(line[0]=="LIST_CONTENT") :
-                        if (len(line) == 2) :
-                            client.listcontent(line[1])
-                        else :
-                            print("Syntax error. Usage: LIST_CONTENT <userName>")
-
-                    elif(line[0]=="DISCONNECT") :
-                        if (len(line) == 2) :
-                            client.disconnect(line[1])
-                        else :
-                            print("Syntax error. Usage: DISCONNECT <userName>")
-
-                    elif(line[0]=="GET_FILE") :
-                        if (len(line) == 4) :
-                            client.getfile(line[1], line[2], line[3])
-                        else :
-                            print("Syntax error. Usage: GET_FILE <userName> <remote_fileName> <local_fileName>")
-
-                    elif(line[0]=="QUIT") :
-                        if (len(line) == 1) :
-                            break
-                        else :
-                            print("Syntax error. Use: QUIT")
-                    else :
-                        print("Error: command " + line[0] + " not valid.")
-            except Exception as e:
-                print("Exception: " + str(e))
-
-    # *
-    # * @brief Prints program usage
-    @staticmethod
-    def usage() :
-        print("Usage: python3 client.py -s <server> -p <port>")
-
-
-    # *
-    # * @brief Parses program execution arguments
-    @staticmethod
-    def  parseArguments(argv) :
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-s', type=str, required=True, help='Server IP')
-        parser.add_argument('-p', type=int, required=True, help='Server Port')
-        args = parser.parse_args()
-
-        if (args.s is None):
-            parser.error("Usage: python3 client.py -s <server> -p <port>")
-            return False
-
-        if ((args.p < 1024) or (args.p > 65535)):
-            parser.error("Error: Port must be in the range 1024 <= port <= 65535");
-            return False;
-        
-        _server = args.s
-        _port = args.p
-
-        return True
-
-
-    # ******************** MAIN *********************
-    @staticmethod
-    def main(argv) :
-        if (not client.parseArguments(argv)) :
-            client.usage()
-            return
-
-        #  Write code here
-        client.shell()
-        print("+++ FINISHED +++")
-    
-
-if __name__=="__main__":
-    client.main([])
+    client = P2PClient(args.server, args.port)
+    client.shell()
