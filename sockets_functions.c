@@ -5,24 +5,22 @@
 #include <stdint.h> // Para usar tipos de ancho fijo
 #include <arpa/inet.h> // Para ntohl()
 
-int sendMessage(int socket, const char *buffer) {
-    int32_t len = strlen(buffer); // Obtiene la longitud del mensaje
-    int32_t netLen = htonl(len); // Convierte a formato de red
+int sendMessage(int socket, char * buffer, int len)
+{
+	int r;
+	int l = len;
+		
 
-    // Enviar primero la longitud del mensaje
-    if (write(socket, &netLen, sizeof(netLen)) < 0) {
-        return -1;
-    }
-
-    // Enviar el contenido del mensaje
-    int sentBytes = 0;
-    while (sentBytes < len) {
-        int r = write(socket, buffer + sentBytes, len - sentBytes);
-        if (r < 0) return -1; // Error al enviar
-        sentBytes += r;
-    }
-
-    return 0; // Mensaje enviado exitosamente
+	do {	
+		r = write(socket, buffer, l);
+		l = l -r;
+		buffer = buffer + r;
+	} while ((l>0) && (r>=0));
+	
+	if (r < 0)
+		return (-1);   /* fail */
+	else
+		return(0);	/* full length has been sent */
 }
 
 

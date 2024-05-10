@@ -17,52 +17,6 @@ char* serialize_message_to_server(struct peticion request) {
     return out;
 }
 
-char* serialize_message_to_client(struct peticion request) {
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "op", request.op);
-    cJSON_AddStringToObject(root, "user_name", request.user_name);
-    cJSON_AddStringToObject(root, "file_name", request.file_name);
-    cJSON_AddStringToObject(root, "description", request.description);
-    cJSON_AddStringToObject(root, "err_msg", request.err_msg);
-
-    char *out = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    return out;
-}
-
-void deserialize_message_from_server(const char* message, struct peticion* request) {
-    cJSON *root = cJSON_Parse(message);
-    if (root == NULL) {
-        return;  // Error handling for failed parse
-    }
-
-    cJSON *op = cJSON_GetObjectItemCaseSensitive(root, "op");
-    if (cJSON_IsNumber(op)) {
-        request->op = op->valueint;
-    }
-
-    cJSON *user_name = cJSON_GetObjectItemCaseSensitive(root, "user_name");
-    if (cJSON_IsString(user_name) && (user_name->valuestring != NULL)) {
-        strcpy(request->user_name, user_name->valuestring);
-    }
-
-    cJSON *file_name = cJSON_GetObjectItemCaseSensitive(root, "file_name");
-    if (cJSON_IsString(file_name) && (file_name->valuestring != NULL)) {
-        strcpy(request->file_name, file_name->valuestring);
-    }
-
-    cJSON *description = cJSON_GetObjectItemCaseSensitive(root, "description");
-    if (cJSON_IsString(description) && (description->valuestring != NULL)) {
-        strcpy(request->description, description->valuestring);
-    }
-
-    cJSON *err_msg = cJSON_GetObjectItemCaseSensitive(root, "err_msg");
-    if (cJSON_IsString(err_msg) && (err_msg->valuestring != NULL)) {
-        strcpy(request->err_msg, err_msg->valuestring);
-    }
-
-    cJSON_Delete(root);
-}
 
 // Función auxiliar para obtener el código de operación basado en el nombre de la operación
 int get_op_code(const char* op_name) {

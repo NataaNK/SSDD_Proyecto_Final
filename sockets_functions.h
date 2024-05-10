@@ -3,7 +3,7 @@
 
 #include <unistd.h>
 
-int sendMessage(int socket, const char *buffer);
+int sendMessage(int socket, char * buffer, int len);
 int recvMessage(int socket, char **buffer);
 
 #endif // SOCKETS_FUNCTIONS_H

@@ -34,6 +34,7 @@ void handle_signal(int sig);
 
 /* Variables globales */
 int sd;
+int sc;
 
 /* Mutex y variables condicionales para proteger la copia del mensaje */
 pthread_mutex_t mutex_mensaje;
@@ -54,7 +55,7 @@ struct args_tratar_msg  {
 int tratar_mensaje(void *args_trat_msg){
 	struct peticion mensaje;	/* mensaje local */
 	struct sockaddr_in client_addr; /* addr del cliente local*/
-	struct peticion resultado;	/* resultado de la operación */
+	int resultado;	/* resultado de la operación */
 	int sc;						/* socket de conexión con el cliente */
 
 	/* el thread copia el mensaje a un mensaje local */
@@ -71,68 +72,337 @@ int tratar_mensaje(void *args_trat_msg){
 
 	pthread_mutex_unlock(&mutex_mensaje);
 
-	strcpy(resultado.err_msg, "");
+	resultado = 0;
 
 	/* ejecutar la petición del cliente y preparar respuesta */
 	/* REGISTER */
 	if (mensaje.op == 0){
-		printf("REGISTER\n");
+		printf("REGISTER FROM %s\n", mensaje.user_name);
+
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("data.json");
+		if (json == NULL){
+			resultado = 2;
+		}
+		else {
+			// Crear entrada en el json, con la clave como user_name
+
+			// Si encuentra un item usando esa clave, la clave ya existe -> error
+			cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+			if (item != NULL){
+				resultado = 1;
+			}
+			else {
+				// Array vacío
+				cJSON *array = cJSON_AddArrayToObject(json,  mensaje.user_name);
+
+				// Convertir cJSON object a JSON string 
+				char *json_str = cJSON_Print(json);
+				
+				// Escribir JSON string al archivo
+				if (write_json("data.json", json_str) < 0){
+					resultado = 1;
+				}
+
+				// Liberar JSON string y cJSON object 
+				cJSON_free(json_str); 
+				cJSON_Delete(json);
+			}
+		}
 
 	/* UNREGISTER */
     } else if (mensaje.op == 1){
-		printf("UNREGISTER\n");
+		printf("UNREGISTER FROM %s\n", mensaje.user_name);
+
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("data.json");
+		if (json == NULL){
+			resultado = 2;
+		}
+		else {
+			// Eliminar entrada
+			cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+			if (item == NULL){
+				resultado = 1; // No existe la entrada
+			}
+			else {
+				cJSON_DeleteItemFromObject(json, mensaje.user_name);
+			
+				// Covertir cJSON object a JSON string 
+				char *json_str = cJSON_Print(json); 
+			
+				// Escribir JSON string al archivo
+				if (write_json("data.json", json_str) < 0){
+					resultado = 2;
+				}
+
+				// Liberar el JSON string y cJSON object 
+				cJSON_free(json_str); 
+				cJSON_Delete(json);
+			}
+		}
 
 	/* CONNECT */
     } else if (mensaje.op == 2){
-		printf("CONNECT\n");
+		printf("CONNECT %s\n", mensaje.user_name);
 
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("users_connected.json");
+		if (json == NULL){
+			resultado = 3;
+		}
+		else{
+			cJSON *json_data = read_json("data.json");
+			if (json == NULL){
+				resultado = 3;
+			} 
+			else{
+				// Si no encuentra un item usando esa clave, el usuario no existe
+				cJSON *item_exists = cJSON_GetObjectItemCaseSensitive(json_data, mensaje.user_name);
+				if (item_exists == NULL){
+					resultado = 1;
+				}
+				else{
+					// Si encuentra un item usando esa clave, el usuario ya está conectado
+					cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+					if (item != NULL){
+						resultado = 2;
+					} 
+					else {
+						// Array vacío
+						cJSON *array = cJSON_AddArrayToObject(json,  mensaje.user_name);
+
+						// Convertir cJSON object a JSON string 
+						char *json_str = cJSON_Print(json);
+						
+						// Escribir JSON string al archivo
+						if (write_json("users_connected.json", json_str) < 0){
+							resultado = 3;
+						}
+
+						// Liberar JSON string y cJSON object 
+						cJSON_free(json_str); 
+						cJSON_Delete(json);
+						cJSON_Delete(json_data);
+					}
+				}
+			}
+		}
+		
 
 	/* PUBLISH */
     } else if (mensaje.op == 3){
-		printf("PUBLISH\n");
+		printf("PUBLISH FROM %s\n", mensaje.user_name);
 
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("data.json");
+		if (json == NULL){
+			resultado = 4;
+		}
+		else {
+			cJSON *json_conn = read_json("users_connected.json");
+			if (json_conn == NULL){
+				resultado = 4;
+			}
+			else{
+				// Si el usuario no está conectado
+				cJSON *item_conn = cJSON_GetObjectItemCaseSensitive(json_conn, mensaje.user_name);
+				if (item_conn == NULL){
+					resultado = 2;
+				}
+				else {
+					// Si no existe el usuario
+					cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+					if (item == NULL){
+						resultado = 1;
+					}
+					else{
+						// Comprobamos si ya ha ha publicado ese contenido
+						cJSON *array = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+	
+						int array_size = cJSON_GetArraySize(array);
+
+						char** strings = malloc(array_size * sizeof(char*));
+						if (strings == NULL) {
+							fprintf(stderr, "No se pudo asignar memoria para el arreglo de strings\n");
+							cJSON_Delete(json);
+							resultado = 4;
+						}
+
+						for (int i = 0; i < array_size; i++) {
+							cJSON *item = cJSON_GetArrayItem(array, i);
+							strings[i] = cJSON_GetStringValue(item);
+						}
+
+						// Ver si algún elemento del array coincide con la publicación
+						for (int j = 0; j < array_size; j++){
+							if (strcmp(strings[j], mensaje.file_name)==0){
+								resultado = 3;
+							}
+						}
+
+						// Si no está publicado aún añadirlo
+						if (resultado != 3){
+							cJSON *new_item = cJSON_CreateString(mensaje.file_name);
+    						cJSON_AddItemToArray(array, new_item);
+							// Convertir cJSON object a JSON string 
+							char *json_str = cJSON_Print(json);
+							
+							// Escribir JSON string al archivo
+							if (write_json("data.json", json_str) < 0){
+								resultado = 4;
+							}
+
+							cJSON_free(json_str); 
+						}
+					}
+					
+				}
+				cJSON_Delete(json_conn);
+			}
+			cJSON_Delete(json);
+		}
+	
 
 	/* DELETE */
     } else if (mensaje.op == 4){
-		printf("DELETE\n");
+		printf("DELETE FROM %s\n", mensaje.user_name);
 
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("data.json");
+		if (json == NULL){
+			resultado = 4;
+		}
+		else {
+			cJSON *json_conn = read_json("users_connected.json");
+			if (json_conn == NULL){
+				resultado = 4;
+			}
+			else{
+				// Si el usuario no está conectado
+				cJSON *item_conn = cJSON_GetObjectItemCaseSensitive(json_conn, mensaje.user_name);
+				if (item_conn == NULL){
+					resultado = 2;
+				}
+				else {
+					// Si no existe el usuario
+					cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+					if (item == NULL){
+						resultado = 1;
+					}
+					else{
+						// Comprobamos si existe ese contenido
+						cJSON *array = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+	
+						int array_size = cJSON_GetArraySize(array);
+
+						char** strings = malloc(array_size * sizeof(char*));
+						if (strings == NULL) {
+							fprintf(stderr, "No se pudo asignar memoria para el arreglo de strings\n");
+							cJSON_Delete(json);
+							resultado = 4;
+						}
+
+						for (int i = 0; i < array_size; i++) {
+							cJSON *item = cJSON_GetArrayItem(array, i);
+							strings[i] = cJSON_GetStringValue(item);
+						}
+
+						// Ver si algún elemento del array coincide con la publicación
+						int indice_publicado = -1;
+						for (int j = 0; j < array_size; j++){
+							if (strcmp(strings[j], mensaje.file_name)==0){
+								indice_publicado = j;
+							}
+						}
+
+						if (indice_publicado == -1){
+							resultado = 3;
+						}
+						else{
+							cJSON_DeleteItemFromArray(array, indice_publicado);
+
+							// Covertir cJSON object a JSON string 
+							char *json_str = cJSON_Print(json); 
+						
+							// Escribir JSON string al archivo
+							if (write_json("data.json", json_str) < 0){
+								resultado = 4;
+							}
+
+							// Liberar el JSON string y cJSON object 
+							cJSON_free(json_str); 
+						}
+
+					}
+					
+				}
+				cJSON_Delete(json_conn);
+			}
+			cJSON_Delete(json);
+		}
     } 
 
 	/* LIST_USERS */
     else if (mensaje.op == 5){
-		printf("LIST_USERS\n");
-
+		printf("LIST_USERS FROM %s\n", mensaje.user_name);
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("data.json");
+		if (json == NULL){
+			resultado = 3;
+		}
+		else {
+			cJSON *json_conn = read_json("users_connected.json");
+			if (json_conn == NULL){
+				resultado = 3;
+			}
+			else{
+				// Si el usuario no está conectado
+				cJSON *item_conn = cJSON_GetObjectItemCaseSensitive(json_conn, mensaje.user_name);
+				if (item_conn == NULL){
+					resultado = 2;
+				}
+				else {
+					// Si no existe el usuario
+					cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+					if (item == NULL){
+						resultado = 1;
+					}
+					else{
+						// Calcular usuarios  a enviar
+						
+						// Enviar al cliente cuantos usuarios hay 
+						
+					}
+					
+				}
+				cJSON_Delete(json_conn);
+			}
+			cJSON_Delete(json);
+		}
     } 
+
 	/* LIST_CONTENT */
     else if (mensaje.op == 6){
-		printf("LIST_CONTENT\n");
+		printf("LIST_CONTENT FROM %s\n", mensaje.user_name);
 
     } 
 	/* DISCONNECT */
     else if (mensaje.op == 7){
-		printf("DISCONNECT\n");
+		printf("DISCONNECT FROM %s\n", mensaje.user_name);
 	}
 	/* GET_FILE*/
 	else if (mensaje.op == 8){
-		printf("GET_FILE\n");
+		printf("GET_FILE FROM %s\n", mensaje.user_name);
 
 	}
 
 	int err;
 	// Serializar la estructura resultado en un JSON string
-	char* res_json = serialize_message_to_client(resultado);
-
-	if (res_json == NULL) {
-		printf("Error serializando el mensaje\n");
-		close(sc);
-	}
-	else{
-		// Enviar el JSON serializado
-		err = sendMessage(sc, res_json); // Envía el resultado
-		free(res_json); 
-		if (err == -1) {
-			printf("Error en envío\n");
-		}
+	resultado = htonl(resultado);
+	err = sendMessage(sc, (char *)&resultado, sizeof(int32_t));  // envía el resultado
+	if (err == -1) {
+		printf("Error en envío\n");
 		close(sc);
 	}
 
@@ -199,7 +469,6 @@ int write_json(char *file_path, char *str){
 int main(int argc, char **argv) {   
 	struct sockaddr_in server_addr, client_addr;
 	socklen_t size;
-	int sc;
 	int val;
 	struct peticion pet;
 	int err; 
@@ -294,8 +563,6 @@ int main(int argc, char **argv) {
 			continue; 
 		}
 
-        printf("%s\n", pet_json);
-
 
 		// Deserializa el mensaje JSON en la estructura 'pet'
 		deserialize_message_from_client(pet_json, &pet); // Pasa 'pet_json' directamente
@@ -317,6 +584,7 @@ int main(int argc, char **argv) {
         }   
 	}
 	close(sd);
+	close(sc);
     return(0);
 }
 
@@ -324,8 +592,10 @@ int main(int argc, char **argv) {
 void handle_signal(int sig) {
     if (sig == SIGINT) {
 		close(sd);
+		close(sc);
     } else if (sig == SIGTERM) {
 		close(sd);
+		close(sc);
     }
 
     // Salir del programa después de recibir la señal
