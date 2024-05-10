@@ -10,7 +10,7 @@ run-server:
 	./servidor
 
 run-client:
-	python3 ./client.py -s localhost -p 4200
+	python3 ./client.py -s localhost -p 8080
 
 clean:
 	rm -f servidor

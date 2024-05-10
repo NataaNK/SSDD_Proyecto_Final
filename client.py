@@ -22,7 +22,7 @@ class P2PClient:
 
     def connect_to_server(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((self.server_ip, int(self.server_port)))
+        self.sock.connect((self.server_ip, self.server_port))
 
     def close_connection(self):
         self.sock.close()

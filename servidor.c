@@ -25,7 +25,7 @@ int main(int argc, char *argv[]){
 	bzero((char *)&server_addr, sizeof(server_addr));
     server_addr.sin_family      = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port        = htons(4200);
+    server_addr.sin_port        = htons(8080);
 
     err = bind(sd, (const struct sockaddr *)&server_addr,sizeof(server_addr));
 	if (err == -1) {
