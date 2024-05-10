@@ -369,9 +369,35 @@ int tratar_mensaje(void *args_trat_msg){
 						resultado = 1;
 					}
 					else{
-						// Calcular usuarios  a enviar
+						// Enviar código 0
+						int err;
+						resultado = htonl(resultado);
+						err = sendMessage(sc, (char *)&resultado, sizeof(int32_t)); 
+						if (err == -1) {
+							printf("Error en envío\n");
+							close(sc);
+						}
+
+						// Calcular usuarios a enviar
+						// Contar claves
+						int key_count = 0;
+						cJSON *current_element = NULL;
+						cJSON_ArrayForEach(current_element, json_conn) {
+							key_count++;  // Incrementar por cada clave encontrada
+						}
 						
 						// Enviar al cliente cuantos usuarios hay 
+						key_count = htonl(key_count);
+						err = sendMessage(sc, (char *)&key_count, sizeof(int32_t));  
+						if (err == -1) {
+							printf("Error en envío\n");
+							close(sc);
+						}
+
+						for (int i = 0; i < key_count; i++){
+							printf("ME DA PALO");
+						}
+
 						
 					}
 					
