@@ -4,16 +4,20 @@ import argparse
 from threading import Thread
 
 def send_message(sock, message):
-    sock.sendall(f"{message}\0".encode())
+    message_encoded = message.encode()  # Codificar el mensaje en bytes
+    length = len(message_encoded)
+    sock.sendall(length.to_bytes(4, byteorder='big'))  # Enviar la longitud como 4 bytes
+    sock.sendall(message_encoded)  # Enviar el mensaje codificado
+
 
 def receive_response(sock):
-    response = ""
-    while True:
-        chunk = sock.recv(1)
-        if chunk == b'\0':
-            break
-        response += chunk.decode()
+    length_bytes = sock.recv(4)
+    if not length_bytes:
+        return ""  # Manejar caso de desconexión
+    length = int.from_bytes(length_bytes, byteorder='big')
+    response = sock.recv(length).decode()
     return response
+
 
 class P2PClient:
     def __init__(self, server_ip, server_port):
@@ -55,9 +59,9 @@ class P2PClient:
         self.close_connection()
         return result
 
-    def publish_content(self, username, file_name, description):
+    def publish_content(self,file_name, description):
         self.connect_to_server()
-        send_message(self.sock, f"PUBLISH {username} {file_name} {description}")
+        send_message(self.sock, f"PUBLISH {file_name} {description}")
         result = receive_response(self.sock)
         self.close_connection()
         return result
@@ -101,7 +105,7 @@ class P2PClient:
                 print(self.connect(command[1]))
             elif cmd == "DISCONNECT" and len(command) == 2:
                 print(self.disconnect(command[1]))
-            elif cmd == "PUBLISH" and len(command) == 4:
+            elif cmd == "PUBLISH" and len(command) == 3:
                 print(self.publish_content(command[1], command[2], command[3]))
             elif cmd == "DELETE" and len(command) == 3:
                 print(self.delete_content(command[1], command[2]))

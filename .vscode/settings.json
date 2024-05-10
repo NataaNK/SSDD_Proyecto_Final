@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "buffer": "c",
+        "ifaddrs.h": "c",
+        "mensaje_json.h": "c"
+    }
+}
