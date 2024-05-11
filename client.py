@@ -1,8 +1,13 @@
+import errno
 import socket
 import sys
 import argparse
 import struct
 from threading import Thread
+import socket
+import threading
+from random import randint
+
 
 
 def send_message(sock, message):
@@ -87,11 +92,27 @@ def receive_line(sock):
         line += part
     return line.decode('utf-8')
 
+def find_free_port():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))  # Bind to an available port provided by the host.
+    port = s.getsockname()[1]  # Retrieve the port number
+    s.close()
+    return port
+
+
+def process_request(client_sock):
+    # Aquí se manejaría la petición, por ejemplo, recibir una solicitud de fichero y enviarlo.
+    pass
+
+
 class P2PClient:
     def __init__(self, server_ip, server_port):
         self.server_ip = server_ip
         self.server_port = server_port
         self.user_name = ""
+        self.listen_socket = None
+        self.listen_thread = None
+        self.stop_event = threading.Event()
 
     def connect_to_server(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -127,15 +148,20 @@ class P2PClient:
         return result
 
     def connect(self, username):
-        # Buscar puerto libre, crear socket para recibir peticiones de 
-        # otros clientes <<<<<<<<<<<<------------------------------------------------------------------------
+        # Paso 1: Encontrar un puerto libre y crear un socket para escuchar peticiones
+        self.listen_port = find_free_port()
+        self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listen_socket.bind(("", self.listen_port))
+        self.listen_socket.listen()
 
-        # Crear hilo encargado de escuchar en IP y puerto seleccionado
-        # y atender las peticiones
+        # Paso 2: Crear un hilo para escuchar y atender peticiones
+        self.stop_event.clear()
+        self.listen_thread = threading.Thread(target=self.handle_client_requests)
+        self.listen_thread.start()
 
-
+        # Paso 3: Conectarse al servidor central
         self.connect_to_server()
-        send_message(self.sock, f"CONNECT {username}")
+        send_message(self.sock, f"CONNECT {username} {self.listen_port}")
         result = receive_response(self.sock)
         if result == 0:
             result = "CONNECT OK"
@@ -145,8 +171,25 @@ class P2PClient:
             result = "USER ALREADY CONNECTED"
         elif result == 3: 
             result = "CONNECT FAIL"
+
         self.close_connection()
         return result
+    
+    def handle_client_requests(self):
+        self.listen_socket.settimeout(1)  # Establece un timeout de 1 segundo
+        while not self.stop_event.is_set():
+            try:
+                client_sock, addr = self.listen_socket.accept()
+                print(f"Accepted connection from {addr}")
+                threading.Thread(target=process_request, args=(client_sock,)).start()
+            except socket.timeout:
+                continue  # Continúa revisando si el evento de parada está señalizado
+            except socket.error as e:
+                if e.errno == errno.EBADF:
+                    break  # Sale del bucle si el socket está cerrado
+                else:
+                    print(f"Error during accept or handling: {e}")
+
 
     def publish_content(self, username, file_name, description):
         self.connect_to_server()
@@ -228,14 +271,22 @@ class P2PClient:
         self.connect_to_server()
         send_message(self.sock, f"DISCONNECT {username}")
         result = receive_response(self.sock)
+
         if result == 0:
             result = "DISCONNECT OK"
+            # Cerrar primero el socket de escucha
+            self.listen_socket.close()
+            self.stop_event.set()
+            self.listen_thread.join()  # Espera a que el hilo de escucha termine
         elif result == 1: 
             result = "DISCONNECT FAIL / USER DOES NOT EXIST" 
         elif result == 2: 
             result = "DISCONNECT FAIL / USER NOT CONNECTED"
         elif result == 3: 
-            result = "DISCONNECT FAIL"
+            result = "DISCONNECT FAIL"                
+            self.listen_socket.close()
+            self.stop_event.set()
+            self.listen_thread.join()
         self.close_connection()
         return result
 
