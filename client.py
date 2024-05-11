@@ -126,7 +126,7 @@ def receive_file_from_host(ip, port, remote_file_name, local_file_name):
         elif response_code == 1:
             if os.path.exists(local_file_name):
                 os.remove(local_file_name)  # Elimina el archivo local si la descarga no fue exitosa
-                return "GET_FILE FAIL / FILE NOT EXIST"
+            return "GET_FILE FAIL / FILE NOT EXIST"
         else:
             if os.path.exists(local_file_name):
                 os.remove(local_file_name)  # Elimina el archivo local si la descarga no fue exitosa
@@ -165,7 +165,7 @@ def process_request(client_sock):
         else:
             # Notificar al cliente que el archivo no existe
             client_sock.sendall(b'\x01')  # Código de operación: 1 -> archivo no existe
-            print("File does not exist.")
+            sys.stdout.write("File does not exist.\nc> ")
 
     except Exception as e:
         print(f"Error handling request: {e}")
