@@ -709,8 +709,8 @@ int main(int argc, char **argv) {
 	struct args_tratar_msg args_trat_msg;
     char ip_display[INET_ADDRSTRLEN] = "0.0.0.0";
 
-	if (argc != 2){
-		printf("Es necesario iniciar el servidor indicando el puerto\n");
+	if ((argc != 3) && (strcmp(argv[1], "-p")!=0)){
+		printf("Usage: ./ server -p < port >\n");
 		return -1;
 	}
 
@@ -747,7 +747,7 @@ int main(int argc, char **argv) {
 	bzero((char *)&server_addr, sizeof(server_addr));
 	server_addr.sin_family      = AF_INET;
 	server_addr.sin_addr.s_addr = INADDR_ANY;
-	server_addr.sin_port        = htons(atoi(argv[1]));
+	server_addr.sin_port        = htons(atoi(argv[2]));
 
 	err = bind(sd, (const struct sockaddr *)&server_addr, sizeof(server_addr));
 	if (err == -1) {
@@ -774,7 +774,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
-    printf("s> init server <%s>: <%d>\n", ip_display, ntohs(server_addr.sin_port));
+    printf("s> init server <%s>:<%d>\n", ip_display, ntohs(server_addr.sin_port));
 	while (1){
 		printf("s> ");
         fflush(stdout);
