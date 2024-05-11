@@ -33,30 +33,29 @@ int get_op_code(const char* op_name) {
 }
 
 void deserialize_message_from_client(const char* message, struct peticion* request) {
-    // Limpiar estructura peticion
     memset(request, 0, sizeof(struct peticion));
 
-    // Asumiendo que el mensaje es una cadena simple tipo "OPERACION argumentos"
     char operation[50];
-    sscanf(message, "%s", operation);  // Leer el primer token como la operación
+    sscanf(message, "%s", operation);
     request->op = get_op_code(operation);
 
-    // Analizar el mensaje completo basado en la operación
     switch (request->op) {
         case 0: // REGISTER
         case 1: // UNREGISTER
-        case 2: // CONNECT
         case 7: // DISCONNECT
-            sscanf(message, "%*s %s", request->user_name);  // Leer el segundo token como user_name
+            sscanf(message, "%*s %s", request->user_name);
+            break;
+        case 2: // CONNECT
+            // Se espera recibir "CONNECT username listen_port"
+            sscanf(message, "%*s %s %s", request->user_name, request->listen_port);
             break;
         case 3: // PUBLISH
             sscanf(message, "%*s %s %s %[^\t\n]", request->user_name, request->file_name, request->description);
             break;
         case 4: // DELETE
-            sscanf(message, "%*s %s", request->user_name);  // Solo se necesita user_name
+            sscanf(message, "%*s %s", request->user_name);
             break;
         case 6: // LIST_CONTENT
-            // Se espera recibir "LIST_CONTENT username list_user_name"
             sscanf(message, "%*s %s %s", request->user_name, request->remote_user_name);
             break;
         case 5: // LIST_USERS
@@ -69,3 +68,4 @@ void deserialize_message_from_client(const char* message, struct peticion* reque
             sprintf(request->err_msg, "Operación desconocida.");
     }
 }
+

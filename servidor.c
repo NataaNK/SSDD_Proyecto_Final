@@ -57,6 +57,7 @@ int tratar_mensaje(void *args_trat_msg){
 	struct sockaddr_in client_addr; /* addr del cliente local*/
 	int resultado;	/* resultado de la operación */
 	int sc;						/* socket de conexión con el cliente */
+	char client_ip[INET_ADDRSTRLEN]; /* para almacenar la dirección IP del cliente en formato legible */
 
 	/* el thread copia el mensaje a un mensaje local */
 	pthread_mutex_lock(&mutex_mensaje);
@@ -64,6 +65,9 @@ int tratar_mensaje(void *args_trat_msg){
 	mensaje = ((struct args_tratar_msg *)args_trat_msg)->mess;
 	memcpy(&client_addr, &((struct args_tratar_msg *)args_trat_msg)->client_addr, sizeof(struct sockaddr_in));
 	memcpy(&sc, &((struct args_tratar_msg *)args_trat_msg)->sc, sizeof(int));
+
+    /* Convertir la dirección IP del cliente de binario a texto */
+    inet_ntop(AF_INET, &(client_addr.sin_addr), client_ip, INET_ADDRSTRLEN);
 
 	/* ya se puede despertar al servidor*/
 	mensaje_no_copiado = false;
@@ -169,22 +173,21 @@ int tratar_mensaje(void *args_trat_msg){
 						resultado = 2;
 					} 
 					else {
-						// Array vacío
-						cJSON *array = cJSON_AddArrayToObject(json,  mensaje.user_name);
+						// Array [str(IP_cliente), str(Puerto_cliente)]
+						cJSON *user_info = cJSON_CreateArray();
+						cJSON_AddItemToArray(user_info, cJSON_CreateString(client_ip)); // IP del cliente
+						cJSON_AddItemToArray(user_info, cJSON_CreateString(mensaje.listen_port)); // Puerto de escucha del cliente
 
-						// Convertir cJSON object a JSON string 
+						cJSON_AddItemToObject(json, mensaje.user_name, user_info);
+
 						char *json_str = cJSON_Print(json);
-						
-						// Escribir JSON string al archivo
-						if (write_json("users_connected.json", json_str) < 0){
-							resultado = 3;
+						if (write_json("users_connected.json", json_str) < 0) {
+							resultado = 3; // Error al escribir en el archivo
 						}
-
-						// Liberar JSON string y cJSON object 
-						cJSON_free(json_str); 
-						cJSON_Delete(json);
-						cJSON_Delete(json_data);
+						cJSON_free(json_str);
 					}
+					cJSON_Delete(json);
+					cJSON_Delete(json_data);
 				}
 			}
 		}
