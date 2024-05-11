@@ -228,6 +228,14 @@ class P2PClient:
         self.connect_to_server()
         send_message(self.sock, f"DISCONNECT {username}")
         result = receive_response(self.sock)
+        if result == 0:
+            result = "DISCONNECT OK"
+        elif result == 1: 
+            result = "DISCONNECT FAIL / USER DOES NOT EXIST" 
+        elif result == 2: 
+            result = "DISCONNECT FAIL / USER NOT CONNECTED"
+        elif result == 3: 
+            result = "DISCONNECT FAIL"
         self.close_connection()
         return result
 
