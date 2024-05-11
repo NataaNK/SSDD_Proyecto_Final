@@ -93,6 +93,13 @@ def receive_line(sock):
         line += part
     return line.decode('utf-8')
 
+def find_free_port():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))  # Bind to an available port provided by the host.
+    port = s.getsockname()[1]  # Retrieve the port number
+    s.close()
+    return port
+
 def receive_file_from_host(ip, port, remote_file_name, local_file_name):
     try:
         # Conectar al host remoto
@@ -130,16 +137,7 @@ def receive_file_from_host(ip, port, remote_file_name, local_file_name):
             os.remove(local_file_name)  # Asegúrate de no dejar un archivo parcialmente descargado
         return "GET_FILE FAIL"
     finally:
-        remote_sock.close()  # Asegúrate de cerrar la conexión independientemente del resultado
-        
-
-def find_free_port():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("", 0))  # Bind to an available port provided by the host.
-    port = s.getsockname()[1]  # Retrieve the port number
-    s.close()
-    return port
-
+        remote_sock.close()  # Asegúrate de cerrar la conexión independientemente del resultado  
 
 def process_request(client_sock):
     # Recibir una solicitud de fichero y enviarlo.
@@ -377,7 +375,7 @@ class P2PClient:
         elif result == 6:
             result = "GET_FILE FAIL / FILE NOT EXIST"
         else:
-            ip_port_data = self.sock.recv(1024).decode()
+            ip_port_data = self.sock.recv(1024).decode().rstrip("\x00")
             ip, port = ip_port_data.split()
             # CONECTARSE A CLIENTE REMOTO Y DESCARGAR ARCHIVO
             remote_file_name = os.path.abspath(remote_file_name)
