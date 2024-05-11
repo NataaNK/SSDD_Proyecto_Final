@@ -385,7 +385,7 @@ int tratar_mensaje(void *args_trat_msg){
 						cJSON_ArrayForEach(current_element, json_conn) {
 							key_count++;  // Incrementar por cada clave encontrada
 						}
-						
+
 						// Enviar al cliente cuantos usuarios hay 
 						key_count = htonl(key_count);
 						err = sendMessage(sc, (char *)&key_count, sizeof(int32_t));  
@@ -394,35 +394,44 @@ int tratar_mensaje(void *args_trat_msg){
 							close(sc);
 						}
 
-						cJSON *user_item = NULL;
-						cJSON_ArrayForEach(user_item, json_conn) {
-							struct user_info user;
-							cJSON *user_data = user_item->child;
+						// Enviar info usuarios, línea a línea
+						cJSON *current_user = NULL;
+						cJSON_ArrayForEach(current_user, json_conn) {
+							if (!cJSON_IsArray(current_user)) {
+								fprintf(stderr, "Error: expected an array for key '%s'\n", current_user->string);
+								continue;
+							}
 
-							// Lo he intentado con esto y da SIGSEGV
-							// He creado la estructura user_info y su serializador
-							strncpy(user.user_name, user_item->string, sizeof(user.user_name)-1);  // Nombre de usuario
-							user.user_name[sizeof(user.user_name) - 1] = '\0';  // Asegura NULL-termination
-							strncpy(user.ip, cJSON_GetArrayItem(user_data, 0)->valuestring, sizeof(user.ip)-1);  // IP
-							user.ip[sizeof(user.ip) - 1] = '\0';
-							strncpy(user.port, cJSON_GetArrayItem(user_data, 1)->valuestring, sizeof(user.port)-1);
-							user.port[sizeof(user.port) - 1] = '\0';  // Puerto
+							int array_size = cJSON_GetArraySize(current_user);
+							char buffer[1024] = {0}; 
+							int buffer_length = snprintf(buffer, sizeof(buffer), "%s", current_user->string);
 
-							char *serialized = serialize_user_info(user);
-							sendMessage(sc, serialized, strlen(serialized));  // Enviar la información serializada
-							free(serialized);
+							for (int i = 0; i < array_size; i++) {
+								cJSON *item = cJSON_GetArrayItem(current_user, i);
+								if (!cJSON_IsString(item)) {
+									fprintf(stderr, "Error: array item is not a string\n");
+									continue;
+								}
+
+								buffer_length += snprintf(buffer + buffer_length, sizeof(buffer) - buffer_length, " %s", item->valuestring);
+							}
+
+							snprintf(buffer + buffer_length, sizeof(buffer) - buffer_length, "\n");
+
+							if (sendMessage(sc, buffer, strlen(buffer)) != 0) {
+								fprintf(stderr, "Failed to send message\n");
+								resultado = 3; 
+							}
 						}
 
-						
+						}
 					}
 					
 				}
 				cJSON_Delete(json_conn);
 			}
 			cJSON_Delete(json);
-		}
-    } 
-
+	}
 	/* LIST_CONTENT */
     else if (mensaje.op == 6){
 		printf("LIST_CONTENT FROM %s\n", mensaje.user_name);

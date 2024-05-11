@@ -20,32 +20,34 @@ def receive_response(sock):
     response = int.from_bytes(length_bytes, byteorder='big')
     return response
 
-def receive_user_info(sock):
-    # Define la estructura esperada. Asegúrate de que el formato coincida con el servidor C
-    user_info_format = '256s16s6s'
-    data = b''
-
-    # Calcula el tamaño de la estructura basada en el formato
-    expected_size = struct.calcsize(user_info_format)
-
-    while len(data) < expected_size:
-        packet = sock.recv(expected_size - len(data))
-        if not packet:
-            break
-        data += packet
-
-    if len(data) < expected_size:
-        raise Exception("Incomplete data received")
-
-    # Desempaquetar según el formato dado
-    user_name, ip, port = struct.unpack(user_info_format, data)
-
-    # Decodificar a utf-8 y limpiar caracteres nulos
-    user_name = user_name.decode('utf-8').strip('\x00')
-    ip = ip.decode('utf-8').strip('\x00')
-    port = port.decode('utf-8').strip('\x00')
-
-    return user_name, ip, port
+def receive_user_list(sock):
+    """
+    Receive a list of user details from the server. Assuming that the server could send multiple user details at once.
+    
+    Args:
+    sock (socket.socket): The socket object used for the communication.
+    
+    Returns:
+    list of str: A list of formatted strings, each containing one user's key and values.
+    """
+    try:
+        data = sock.recv(4096).decode('utf-8')  # Receives data from the server
+        if data:
+            users = []
+            # Split data into separate lines
+            lines = data.strip().split('\n')
+            for line in lines:
+                items = line.split()
+                if items:
+                    key = items[0]
+                    values = ' '.join(items[1:])
+                    users.append(f"{key} {values}")
+            return users
+        else:
+            return []
+    except socket.error as e:
+        print(f"Socket error: {e}")
+        return []
 
 
 class P2PClient:
@@ -149,11 +151,11 @@ class P2PClient:
         result = receive_response(self.sock)
         if result == 0:
             num_users = receive_response(self.sock)
-            result_str = "LIST_USERS OK\n"
-            for i in (range(num_users)):
-                user_name, ip, port = receive_user_info(self.sock)
-                result_str += user_name + " " + ip + " " + port + "\n"
-                print(result_str)
+            result_str = "c> LIST_USERS OK\n"
+            all_users = receive_user_list(self.sock)
+            for user_info in all_users[:num_users]:  # Limit to expected number of users
+                result_str += '\t' + user_info + '\n'
+            result = result_str.rstrip('\n') # Eliminar último /n
         elif result == 1: 
             result = "LIST_USERS FAIL, USER DOES NOT EXIST" 
         elif result == 2: 
