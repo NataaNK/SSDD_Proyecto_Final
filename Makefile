@@ -8,7 +8,7 @@ CFLAGS = -Wall -Wextra -pedantic -std=c11 -I$(CJSON_DIR)
 LDFLAGS = -L. -Wl,-rpath=$(CJSON_DIR) -Wl,-rpath=$(CJSON_DIR)/$(CJSON_DIR) -lcjson -L$(CJSON_DIR) -lpthread -lrt
 
 # Source files
-SERVER_SRC = servidor.c
+SERVER_SRC = server.c
 SOCKETS_SRC = sockets_functions.c 
 MSG_JSON_SRC = mensaje_json.c
 
@@ -19,7 +19,7 @@ SOCKETS_OBJ = $(SOCKETS_SRC:.c=.o)
 MSG_JSON_OBJ = $(MSG_JSON_SRC:.c=.o)
 
 # Target executables and library
-SERVER_BIN = servidor
+SERVER_BIN = server
 
 # cJSON files
 CJSON_DIR = cJSON
@@ -40,7 +40,7 @@ $(CJSON_LIB):
 	cd $(CJSON_DIR) && make
 
 run-server:
-	./servidor -p 8080
+	./server -p 8080
 
 run-client:
 	python3 ./client.py -s localhost -p 8080
