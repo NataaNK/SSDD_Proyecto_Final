@@ -133,6 +133,8 @@ def receive_file_from_host(ip, port, remote_file_name, local_file_name):
             return "GET_FILE FAIL"
 
     except Exception as e:
+        print(e)
+        sys.stdout.flush()
         if os.path.exists(local_file_name):
             os.remove(local_file_name)  # Asegúrate de no dejar un archivo parcialmente descargado
         return "GET_FILE FAIL"
@@ -159,7 +161,7 @@ def process_request(client_sock):
                 while data:
                     client_sock.sendall(data)
                     data = file.read(4096)
-            print("File sent successfully.")
+            sys.stdout.write("File sent successfully.\nc> ")
         else:
             # Notificar al cliente que el archivo no existe
             client_sock.sendall(b'\x01')  # Código de operación: 1 -> archivo no existe
@@ -381,9 +383,8 @@ class P2PClient:
             remote_file_name = os.path.abspath(remote_file_name)
             local_file_name = os.path.abspath(local_file_name)
             result = receive_file_from_host(ip, port, remote_file_name, local_file_name)
-
+        
         self.close_connection()
-
         return result
 
     def shell(self):
