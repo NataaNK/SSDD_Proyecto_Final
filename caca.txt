@@ -12,7 +12,7 @@ import signal
 import logging
 from zeep import Client
 from ws_time import get_application
-from wsgiref.simple_server import WSGIServer, make_server, WSGIRequestHandler
+from wsgiref.simple_server import WSGIServer, make_server
 
 
 
@@ -182,7 +182,7 @@ def process_request(client_sock):
 def get_time():
     # URL del WSDL del servicio SOAP que proporciona la fecha y hora
     local_ip = get_local_ip()
-    wsdl = f'http://{local_ip}:{port_SOAP}/?wsdl'
+    wsdl = f'http://{local_ip}:8000/?wsdl'
     client = Client(wsdl=wsdl)
     
     fecha_hora = client.service.obtener_fecha_hora()
@@ -459,8 +459,7 @@ class P2PClient:
                         print("Syntax error. Usage: GET_FILE <userName> <remote_fileName> <local_fileName>")
                 elif cmd == "QUIT":
                     if len(command) == 1:
-                        if self.user_name:
-                            self.disconnect(self.user_name)
+                        self.disconnect(self.user_name)
                         graceful_shutdown()
                         print("+++ FINISHED +++")
                         break
@@ -470,7 +469,6 @@ class P2PClient:
                     print(f"Error: command {cmd} not valid.")
 
         except KeyboardInterrupt:
-            graceful_shutdown()
             self.disconnect(self.user_name)
             print("+++ FINISHED +++")
 
@@ -491,21 +489,13 @@ def run_soap_server():
     application = get_application()  # Obtiene la aplicación del servidor SOAP
     local_ip = get_local_ip()  # Obtiene la IP local del sistema
     global server  # Definir server como global para que pueda ser accedido en graceful_shutdown
-    global port_SOAP
-    port_SOAP = find_free_port()
-    server = make_server(local_ip, port_SOAP, application, server_class=CustomWSGIServer, handler_class=QuietWSGIRequestHandler)
+    server = make_server(local_ip, 8000, application, server_class=CustomWSGIServer)
     server.serve_forever()
 
 def graceful_shutdown(signum=None, frame=None):
-    if client and client.listen_socket:
-        client.stop_event.set()  # Indicar a los hilos que deben detenerse.
-        client.listen_socket.close()  # Cerrar el socket de escucha para liberar el puerto.
-        client.disconnect(client.user_name)
-
-    if server:
-        server.shutdown()  # Detener el bucle de procesamiento de solicitudes del servidor.
-        server.server_close()  # Liberar el socket del servidor.
-    
+    if server:  # Asegurar que el servidor está definido y no es None
+        server.shutdown()  # Cierra el servidor WSGI
+        server.server_close()  # Cierra el socket del servidor
     sys.exit(0)
 
 # Clase servidor personalizada para reutilizar el puerto
@@ -515,22 +505,18 @@ class CustomWSGIServer(WSGIServer):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         super().server_bind()
 
-class QuietWSGIRequestHandler(WSGIRequestHandler):
-    def log_request(self, code='-', size='-'):
-        """Suprime el registro de las solicitudes HTTP."""
-        pass
-
 if __name__ == "__main__":
-    # Suprimir la mayoría de los logs.
-    logging.disable(logging.CRITICAL)
+    # Configuración del logger
+    logging.basicConfig(level=logging.DEBUG)
     logging.getLogger('spyne.protocol.xml').setLevel(logging.DEBUG)
 
     # Registrar el manejador de señales para una terminación limpia
     signal.signal(signal.SIGINT, graceful_shutdown)
 
-    # Crear el servidor SOAP en un hilo separado
+    # Iniciar el servidor SOAP en un hilo separado
     soap_thread = threading.Thread(target=run_soap_server)
     soap_thread.daemon = True
+    soap_thread.start()
 
     # Analizar argumentos para el cliente P2P
     parser = argparse.ArgumentParser(description='Client for a P2P File Distribution System')
@@ -543,13 +529,9 @@ if __name__ == "__main__":
     if not args.server:
         parser.error("Usage: python3 client.py -s <server> -p <port>")
     
-    # Crear el cliente P2P
-    global client
+    # Ejecutar el cliente P2P
     client = P2PClient(args.server, args.port)
-
-    # Iniciar el servidor SOAP y el cliente P2P
-    soap_thread.start()
     client.shell()
 
-    # Esperar a que el servidor SOAP termine
+    # Esperar a que el servidor SOAP termine (opcional, ya que es daemon)
     soap_thread.join()
