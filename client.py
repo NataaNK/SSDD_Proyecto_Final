@@ -8,6 +8,10 @@ import socket
 import threading
 from random import randint
 import os
+import signal
+import logging
+from ws_time import get_application
+from wsgiref.simple_server import WSGIServer, make_server
 
 
 
@@ -446,6 +450,7 @@ class P2PClient:
                 elif cmd == "QUIT":
                     if len(command) == 1:
                         self.disconnect(self.user_name)
+                        graceful_shutdown()
                         print("+++ FINISHED +++")
                         break
                     else:
@@ -456,11 +461,54 @@ class P2PClient:
         except KeyboardInterrupt:
             self.disconnect(self.user_name)
             print("+++ FINISHED +++")
-        
-        
-      
+
+def get_local_ip():
+    """ Obtener la dirección IP local de la máquina donde se ejecuta el script. """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # no necesita ser una dirección alcanzable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+def run_soap_server():
+    application = get_application()  # Obtiene la aplicación del servidor SOAP
+    local_ip = get_local_ip()  # Obtiene la IP local del sistema
+    global server  # Definir server como global para que pueda ser accedido en graceful_shutdown
+    server = make_server(local_ip, 8000, application, server_class=CustomWSGIServer)
+    server.serve_forever()
+
+def graceful_shutdown(signum=None, frame=None):
+    if server:  # Asegurar que el servidor está definido y no es None
+        server.shutdown()  # Cierra el servidor WSGI
+        server.server_close()  # Cierra el socket del servidor
+    sys.exit(0)
+
+# Clase servidor personalizada para reutilizar el puerto
+class CustomWSGIServer(WSGIServer):
+    def server_bind(self):
+        # Esta opción permite reutilizar inmediatamente el puerto
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
 
 if __name__ == "__main__":
+    # Configuración del logger
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger('spyne.protocol.xml').setLevel(logging.DEBUG)
+
+    # Registrar el manejador de señales para una terminación limpia
+    signal.signal(signal.SIGINT, graceful_shutdown)
+
+    # Iniciar el servidor SOAP en un hilo separado
+    soap_thread = threading.Thread(target=run_soap_server)
+    soap_thread.daemon = True
+    soap_thread.start()
+
+    # Analizar argumentos para el cliente P2P
     parser = argparse.ArgumentParser(description='Client for a P2P File Distribution System')
     parser.add_argument('-s', '--server', required=True, help='Server IP address')
     parser.add_argument('-p', '--port', required=True, type=int, help='Server port')
@@ -471,5 +519,9 @@ if __name__ == "__main__":
     if not args.server:
         parser.error("Usage: python3 client.py -s <server> -p <port>")
     
+    # Ejecutar el cliente P2P
     client = P2PClient(args.server, args.port)
     client.shell()
+
+    # Esperar a que el servidor SOAP termine (opcional, ya que es daemon)
+    soap_thread.join()
