@@ -10,6 +10,7 @@ char* serialize_message_to_server(struct peticion request) {
     cJSON_AddStringToObject(root, "user_name", request.user_name);
     cJSON_AddStringToObject(root, "file_name", request.file_name);
     cJSON_AddStringToObject(root, "description", request.description);
+    cJSON_AddStringToObject(root, "time", request.time);  // Agregar el tiempo al JSON
     cJSON_AddStringToObject(root, "err_msg", request.err_msg);
 
     char *out = cJSON_PrintUnformatted(root);
@@ -32,41 +33,54 @@ int get_op_code(const char* op_name) {
     return -1;  // Código desconocido
 }
 
+
 void deserialize_message_from_client(const char* message, struct peticion* request) {
     memset(request, 0, sizeof(struct peticion));
 
-    char operation[50];
-    sscanf(message, "%s", operation);  // Extraer el tipo de operación
-    request->op = get_op_code(operation);  // Obtener el código de la operación
+    char operation[50], date[11], time[9];  // Formato de fecha MM/DD/YYYY y HH:MM:SS
+    char dateTime[21]; // Buffer para almacenar fecha y hora concatenadas
+    int scanCount = sscanf(message, "%s %10s %8s", operation, date, time);  // Extraer operación, fecha y hora
+
+    if (scanCount != 3) {
+        fprintf(stderr, "Error parsing the operation, date, or time.\n");
+        return; // Manejo de error si no se extraen los tres componentes correctamente
+    }
+
+    snprintf(dateTime, sizeof(dateTime), "%s %s", date, time); // Concatenar fecha y hora de forma segura
+    strcpy(request->time, dateTime); // Copiar al campo time del request
+
+    request->op = get_op_code(operation);  // Obtener código de operación
+
+    // Avanzar el puntero del mensaje más allá de la operación, fecha y hora
+    const char* next = strstr(message, time) + strlen(time);
+    if (*next == ' ') next++; // Asegurarse de que se salta el espacio después del tiempo
 
     switch (request->op) {
         case 0: // REGISTER
         case 1: // UNREGISTER
         case 7: // DISCONNECT
-            sscanf(message, "%*s %s", request->user_name);  // Extraer solo user_name
+            sscanf(next, "%s", request->user_name);  // Extraer user_name
             break;
         case 2: // CONNECT
-            // Se espera recibir "CONNECT username listen_port"
-            sscanf(message, "%*s %s %s", request->user_name, request->listen_port);
+            sscanf(next, "%s %s", request->user_name, request->listen_port);
             break;
         case 3: // PUBLISH
-            sscanf(message, "%*s %s %s %[^\t\n]", request->user_name, request->file_name, request->description);
+            sscanf(next, "%s %s %[^\t\n]", request->user_name, request->file_name, request->description);
             break;
         case 4: // DELETE
-            sscanf(message, "%*s %s", request->user_name);  // Solo se necesita user_name
-            break;
-        case 6: // LIST_CONTENT
-            sscanf(message, "%*s %s %s", request->user_name, request->remote_user_name);
+            sscanf(next, "%s %s", request->user_name, request->file_name);
             break;
         case 5: // LIST_USERS
-            sscanf(message, "%*s %s", request->user_name);
+            sscanf(next, "%s", request->user_name);
+            break;
+        case 6: // LIST_CONTENT
+            sscanf(next, "%s %s", request->user_name, request->remote_user_name);
             break;
         case 8: // GET_FILE
-            // Se espera recibir "GET_FILE username remote_username remote_file_name local_file_name"
-            sscanf(message, "%*s %s %s %s %s", request->user_name, request->remote_user_name, request->remote_file_name, request->local_file_name);
+            sscanf(next, "%s %s %s %s", request->user_name, request->remote_user_name, request->remote_file_name, request->local_file_name);
             break;
         default:
             sprintf(request->err_msg, "Operación desconocida.");
+            break;
     }
 }
-

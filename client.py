@@ -15,6 +15,7 @@ from ws_time import get_application
 from wsgiref.simple_server import WSGIServer, make_server, WSGIRequestHandler
 
 
+# FUNCIONES DE ENVÍOS Y RECIBOS SOCKETS ------------------------------------------------------------------------------------
 
 def send_message(sock, message):
     message_encoded = message.encode()  # Codificar el mensaje en bytes
@@ -98,13 +99,6 @@ def receive_line(sock):
         line += part
     return line.decode('utf-8')
 
-def find_free_port():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("", 0))  # Bind to an available port provided by the host.
-    port = s.getsockname()[1]  # Retrieve the port number
-    s.close()
-    return port
-
 def receive_file_from_host(ip, port, remote_file_name, local_file_name):
     try:
         # Conectar al host remoto
@@ -146,6 +140,10 @@ def receive_file_from_host(ip, port, remote_file_name, local_file_name):
     finally:
         remote_sock.close()  # Asegúrate de cerrar la conexión independientemente del resultado  
 
+
+
+# FUNCIÓN PARA ENVIAR FICHERO DE SOLICITUD GET_FILE ------------------------------------------------------------------------------------------------------------
+
 def process_request(client_sock):
     # Recibir una solicitud de fichero y enviarlo.
     try:
@@ -179,6 +177,32 @@ def process_request(client_sock):
     finally:
         client_sock.close()
 
+
+# FUNCIONES PARA OBTENER PUERTOS E IP'S ---------------------------------------------------------------------------------------------------------------
+
+def find_free_port():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))  # Bind to an available port provided by the host.
+    port = s.getsockname()[1]  # Retrieve the port number
+    s.close()
+    return port
+
+def get_local_ip():
+    """ Obtener la dirección IP local de la máquina donde se ejecuta el script. """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # no necesita ser una dirección alcanzable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+
+# FUNCIONES RELACIONADAS CON EL SERVIDOR SOAP - SERVICIO WEB -----------------------------------------------------------------------------------------------------
+
 def get_time():
     # URL del WSDL del servicio SOAP que proporciona la fecha y hora
     local_ip = get_local_ip()
@@ -187,6 +211,44 @@ def get_time():
     
     fecha_hora = client.service.obtener_fecha_hora()
     return fecha_hora
+
+def run_soap_server():
+    application = get_application()  # Obtiene la aplicación del servidor SOAP
+    local_ip = get_local_ip()  # Obtiene la IP local del sistema
+    global server  # Definir server como global para que pueda ser accedido en graceful_shutdown
+    global port_SOAP
+    port_SOAP = find_free_port()
+    server = make_server(local_ip, port_SOAP, application, server_class=CustomWSGIServer, handler_class=QuietWSGIRequestHandler)
+    server.serve_forever()
+
+def graceful_shutdown(signum=None, frame=None):
+    if client and client.listen_socket:
+        client.stop_event.set()  # Indicar a los hilos que deben detenerse.
+        client.listen_socket.close()  # Cerrar el socket de escucha para liberar el puerto.
+        if client.user_name:
+            client.disconnect(client.user_name)
+
+    if server:
+        server.shutdown()  # Detener el bucle de procesamiento de solicitudes del servidor.
+        server.server_close()  # Liberar el socket del servidor.
+    
+    sys.exit(0)
+
+# Clase servidor personalizada para reutilizar el puerto
+class CustomWSGIServer(WSGIServer):
+    def server_bind(self):
+        # Esta opción permite reutilizar inmediatamente el puerto
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
+
+class QuietWSGIRequestHandler(WSGIRequestHandler):
+    def log_request(self, code='-', size='-'):
+        """Suprime el registro de las solicitudes HTTP."""
+        pass
+
+
+# CLIENTE --------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 class P2PClient:
     def __init__(self, server_ip, server_port):
@@ -204,9 +266,11 @@ class P2PClient:
     def close_connection(self):
         self.sock.close()
 
+    # REGISTER -----------------------------------
     def register(self, username):
         self.connect_to_server()
-        send_message(self.sock, f"REGISTER {username}")
+        time = get_time()
+        send_message(self.sock, f"REGISTER {time} {username}")
         result = receive_response(self.sock)
         if result == 0:
             result = "REGISTER OK"
@@ -217,9 +281,11 @@ class P2PClient:
         self.close_connection()
         return result
 
+    # UNREGISTER ----------------------------------
     def unregister(self, username):
         self.connect_to_server()
-        send_message(self.sock, f"UNREGISTER {username}")
+        time = get_time()
+        send_message(self.sock, f"UNREGISTER {time} {username}")
         result = receive_response(self.sock)
         if result == 0:
             result = "UNREGISTER OK"
@@ -230,6 +296,7 @@ class P2PClient:
         self.close_connection()
         return result
 
+    # CONNECT ----------------------------
     def connect(self, username):
         # Paso 1: Encontrar un puerto libre y crear un socket para escuchar peticiones
         self.listen_port = find_free_port()
@@ -244,8 +311,8 @@ class P2PClient:
 
         # Paso 3: Conectarse al servidor central
         self.connect_to_server()
-        print(get_time())
-        send_message(self.sock, f"CONNECT {username} {self.listen_port}")
+        time = get_time()
+        send_message(self.sock, f"CONNECT {time} {username} {self.listen_port}")
         result = receive_response(self.sock)
         if result == 0:
             result = "CONNECT OK"
@@ -274,10 +341,11 @@ class P2PClient:
                 else:
                     print(f"Error during accept or handling: {e}")
 
-
+    # PUBLISH -----------------------------------
     def publish_content(self, username, file_name, description):
         self.connect_to_server()
-        send_message(self.sock, f"PUBLISH {username} {file_name} {description}")
+        time = get_time()
+        send_message(self.sock, f"PUBLISH {time} {username} {file_name} {description}")
         result = receive_response(self.sock)
         if result == 0:
             result = "PUBLISH OK"
@@ -292,9 +360,11 @@ class P2PClient:
         self.close_connection()
         return result
 
+    # DELETE -------------------------------------
     def delete_content(self, username, file_name):
         self.connect_to_server()
-        send_message(self.sock, f"DELETE {username} {file_name}")
+        time = get_time()
+        send_message(self.sock, f"DELETE {time} {username} {file_name}")
         result = receive_response(self.sock)
         if result == 0:
             result = "DELETE OK"
@@ -308,10 +378,12 @@ class P2PClient:
             result = "DELETE FAIL"
         self.close_connection()
         return result
-
+    
+    # LIST_USERS ----------------------------------
     def list_users(self, username):
         self.connect_to_server()
-        send_message(self.sock, f"LIST_USERS {username}")
+        time = get_time()
+        send_message(self.sock, f"LIST_USERS {time} {username}")
         result = receive_response(self.sock)
         if result == 0:
             num_users = receive_response(self.sock)
@@ -329,9 +401,12 @@ class P2PClient:
         self.close_connection()
         return result
     
+
+    # LIST_CONTENT --------------------------------
     def list_content(self, username, list_user_name):
         self.connect_to_server()
-        send_message(self.sock, f"LIST_CONTENT {username} {list_user_name}")
+        time = get_time()
+        send_message(self.sock, f"LIST_CONTENT {time} {username} {list_user_name}")
         result = receive_response(self.sock)
         if result == 0:
             num_contents = receive_response(self.sock)
@@ -351,9 +426,11 @@ class P2PClient:
         self.close_connection()
         return result
 
+    # DISCONNECT -------------------------------------
     def disconnect(self, username):
         self.connect_to_server()
-        send_message(self.sock, f"DISCONNECT {username}")
+        time = get_time()
+        send_message(self.sock, f"DISCONNECT {time} {username}")
         result = receive_response(self.sock)
 
         if result == 0:
@@ -374,9 +451,11 @@ class P2PClient:
         self.close_connection()
         return result
 
+    # GET_FILE -----------------------------------------
     def get_file(self, username, remote_username, remote_file_name, local_file_name):
         self.connect_to_server()
-        send_message(self.sock, f"GET_FILE {username} {remote_username} {remote_file_name} {local_file_name}")
+        time = get_time()
+        send_message(self.sock, f"GET_FILE {time} {username} {remote_username} {remote_file_name} {local_file_name}")
         result = receive_response(self.sock)
         if result == 1:
             result = "GET_FILE FAIL, USER DOES NOT EXIST"
@@ -401,6 +480,7 @@ class P2PClient:
         self.close_connection()
         return result
 
+    # MAIN LOOP
     def shell(self):
         try:
             while True:
@@ -416,8 +496,11 @@ class P2PClient:
                         print("Syntax error. Usage: REGISTER <userName>")
                 elif cmd == "UNREGISTER":
                     if len(command) == 2:
-                        print(self.unregister(command[1]))
-                        self.disconnect(command[1])
+                        unregister_res = self.unregister(command[1])
+                        print(unregister_res)
+                        if unregister_res == "UNREGISTER OK":
+                            self.disconnect(command[1])
+                            self.user_name = ""
                     else:
                         print("Syntax error. Usage: UNREGISTER <userName>")
                 elif cmd == "CONNECT":
@@ -429,6 +512,7 @@ class P2PClient:
                 elif cmd == "DISCONNECT":
                     if len(command) == 2:
                         print(self.disconnect(command[1]))
+                        self.user_name = ""
                     else:
                         print("Syntax error. Usage: DISCONNECT <userName>")
                 elif cmd == "PUBLISH":
@@ -459,8 +543,6 @@ class P2PClient:
                         print("Syntax error. Usage: GET_FILE <userName> <remote_fileName> <local_fileName>")
                 elif cmd == "QUIT":
                     if len(command) == 1:
-                        if self.user_name:
-                            self.disconnect(self.user_name)
                         graceful_shutdown()
                         print("+++ FINISHED +++")
                         break
@@ -474,51 +556,7 @@ class P2PClient:
             self.disconnect(self.user_name)
             print("+++ FINISHED +++")
 
-def get_local_ip():
-    """ Obtener la dirección IP local de la máquina donde se ejecuta el script. """
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # no necesita ser una dirección alcanzable
-        s.connect(('10.255.255.255', 1))
-        IP = s.getsockname()[0]
-    except Exception:
-        IP = '127.0.0.1'
-    finally:
-        s.close()
-    return IP
 
-def run_soap_server():
-    application = get_application()  # Obtiene la aplicación del servidor SOAP
-    local_ip = get_local_ip()  # Obtiene la IP local del sistema
-    global server  # Definir server como global para que pueda ser accedido en graceful_shutdown
-    global port_SOAP
-    port_SOAP = find_free_port()
-    server = make_server(local_ip, port_SOAP, application, server_class=CustomWSGIServer, handler_class=QuietWSGIRequestHandler)
-    server.serve_forever()
-
-def graceful_shutdown(signum=None, frame=None):
-    if client and client.listen_socket:
-        client.stop_event.set()  # Indicar a los hilos que deben detenerse.
-        client.listen_socket.close()  # Cerrar el socket de escucha para liberar el puerto.
-        client.disconnect(client.user_name)
-
-    if server:
-        server.shutdown()  # Detener el bucle de procesamiento de solicitudes del servidor.
-        server.server_close()  # Liberar el socket del servidor.
-    
-    sys.exit(0)
-
-# Clase servidor personalizada para reutilizar el puerto
-class CustomWSGIServer(WSGIServer):
-    def server_bind(self):
-        # Esta opción permite reutilizar inmediatamente el puerto
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        super().server_bind()
-
-class QuietWSGIRequestHandler(WSGIRequestHandler):
-    def log_request(self, code='-', size='-'):
-        """Suprime el registro de las solicitudes HTTP."""
-        pass
 
 if __name__ == "__main__":
     # Suprimir la mayoría de los logs.

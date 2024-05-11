@@ -1,6 +1,4 @@
 {
-	"gfhjbdn":	[],
-	"loco":	[],
 	"js":	["text.txt 'Es un texto que mola'", "ejemplo.py 'Ejemplo de python'"],
 	"NATA":	[],
 	"A":	["A 'a'", "./data.json 'caca'", "data.json 'caca'"],

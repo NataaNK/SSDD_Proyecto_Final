@@ -220,9 +220,8 @@ void *tratar_mensaje(void *args_trat_msg){
 						resultado = 1;
 					}
 					else{
-						// Comprobamos si ya ha ha publicado ese contenido
+						// Comprobamos si ya ha publicado ese contenido
 						cJSON *array = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
-	
 						int array_size = cJSON_GetArraySize(array);
 
 						char** strings = malloc(array_size * sizeof(char*));
@@ -235,11 +234,9 @@ void *tratar_mensaje(void *args_trat_msg){
 						for (int i = 0; i < array_size; i++) {
 							cJSON *item = cJSON_GetArrayItem(array, i);
 							strings[i] = cJSON_GetStringValue(item);
-						}
 
-						// Ver si algún elemento del array coincide con la publicación
-						for (int j = 0; j < array_size; j++){
-							if (strcmp(strings[j], mensaje.file_name)==0){
+							char *firstWord = strtok(strings[i], " ");  // Extraer la primera palabra del string.
+							if (firstWord != NULL && strcmp(firstWord, mensaje.file_name) == 0) {
 								resultado = 3;
 							}
 						}
@@ -300,7 +297,6 @@ void *tratar_mensaje(void *args_trat_msg){
 					else{
 						// Comprobamos si existe ese contenido
 						cJSON *array = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
-	
 						int array_size = cJSON_GetArraySize(array);
 
 						char** strings = malloc(array_size * sizeof(char*));
@@ -310,16 +306,16 @@ void *tratar_mensaje(void *args_trat_msg){
 							resultado = 4;
 						}
 
+						int indice_publicado = -1;
 						for (int i = 0; i < array_size; i++) {
 							cJSON *item = cJSON_GetArrayItem(array, i);
-							strings[i] = cJSON_GetStringValue(item);
-						}
+							strings[i] = cJSON_GetStringValue(item);  // Hacer una copia para manipulación segura.
 
-						// Ver si algún elemento del array coincide con la publicación
-						int indice_publicado = -1;
-						for (int j = 0; j < array_size; j++){
-							if (strcmp(strings[j], mensaje.file_name)==0){
-								indice_publicado = j;
+							// Usar strtok para obtener la primera palabra
+							char *firstWord = strtok(strings[i], " ");  // Extraer la primera palabra del string.
+							if (firstWord != NULL && strcmp(firstWord, mensaje.file_name) == 0) {
+								indice_publicado = i;
+								break;  // Si se encuentra el archivo, detener la búsqueda.
 							}
 						}
 
