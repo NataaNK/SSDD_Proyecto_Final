@@ -17,17 +17,6 @@ char* serialize_message_to_server(struct peticion request) {
     return out;
 }
 
-char* serialize_user_info(struct user_info user) {
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "user_name", user.user_name);
-    cJSON_AddStringToObject(root, "ip", user.ip);
-    cJSON_AddStringToObject(root, "port", user.port);
-
-    char *out = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    return out;
-}
-
 
 // Función auxiliar para obtener el código de operación basado en el nombre de la operación
 int get_op_code(const char* op_name) {
@@ -64,14 +53,17 @@ void deserialize_message_from_client(const char* message, struct peticion* reque
             sscanf(message, "%*s %s %s %[^\t\n]", request->user_name, request->file_name, request->description);
             break;
         case 4: // DELETE
+            sscanf(message, "%*s %s", request->user_name);  // Solo se necesita user_name
+            break;
         case 6: // LIST_CONTENT
-            sscanf(message, "%*s %s %s", request->user_name, request->file_name);
+            // Se espera recibir "LIST_CONTENT username list_user_name"
+            sscanf(message, "%*s %s %s", request->user_name, request->remote_user_name);
             break;
         case 5: // LIST_USERS
             sscanf(message, "%*s %s", request->user_name);
             break;
         case 8: // GET_FILE
-            sscanf(message, "%*s %s %s %s", request->user_name, request->remote_file_name, request->loca_file_name);
+            sscanf(message, "%*s %s %s %s", request->user_name, request->remote_file_name, request->local_file_name);
             break;
         default:
             sprintf(request->err_msg, "Operación desconocida.");

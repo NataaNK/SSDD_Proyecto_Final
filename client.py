@@ -48,7 +48,44 @@ def receive_user_list(sock):
     except socket.error as e:
         print(f"Socket error: {e}")
         return []
+    
+def receive_content_list(sock, num_contents):
+    """
+    Receive a specified number of content items from a socket, and process them to format quotes.
 
+    Args:
+        sock (socket.socket): The socket object used for communication.
+        num_contents (int): The number of content items to receive.
+
+    Returns:
+        list of str: A list of content items received from the server, with quotes formatted.
+    """
+    contents = []
+    for _ in range(num_contents):
+        content = receive_line(sock).strip()  # Remove any trailing newline or extra spaces
+        # Remove double quotes and replace single quotes with double quotes
+        formatted_content = content.replace('"', '').replace("'", '"')
+        contents.append(formatted_content)
+    return contents
+
+
+def receive_line(sock):
+    """
+    Helper function to receive one line of text from a socket.
+
+    Args:
+        sock (socket.socket): The socket object used for communication.
+
+    Returns:
+        str: A single line of text received from the socket.
+    """
+    line = b""
+    while True:
+        part = sock.recv(1)
+        if part == b'\n':
+            break
+        line += part
+    return line.decode('utf-8')
 
 class P2PClient:
     def __init__(self, server_ip, server_port):
@@ -164,17 +201,32 @@ class P2PClient:
             result = "LIST_USERS FAIL"
         self.close_connection()
         return result
+    
+    def list_content(self, username, list_user_name):
+        self.connect_to_server()
+        send_message(self.sock, f"LIST_CONTENT {username} {list_user_name}")
+        result = receive_response(self.sock)
+        if result == 0:
+            num_contents = receive_response(self.sock)
+            result_str = "c> LIST_CONTENT OK\n"
+            all_content = receive_content_list(self.sock, num_contents)
+            for content_info in all_content:
+                result_str += '\t' + content_info + '\n'
+            result = result_str.rstrip('\n')  # Eliminar último '\n'
+        elif result == 1: 
+            result = "LIST_CONTENT FAIL, USER DOES NOT EXIST" 
+        elif result == 2: 
+            result = " LIST_CONTENT FAIL, USER NOT CONNECTED"
+        elif result == 3: 
+            result = "LIST_CONTENT FAIL, REMOTE USER DOES NOT EXIST"
+        elif result == 4: 
+            result = "LIST_CONTENT FAIL"
+        self.close_connection()
+        return result
 
     def disconnect(self, username):
         self.connect_to_server()
         send_message(self.sock, f"DISCONNECT {username}")
-        result = receive_response(self.sock)
-        self.close_connection()
-        return result
-
-    def list_content(self, username, list_user_name):
-        self.connect_to_server()
-        send_message(self.sock, f"LIST_CONTENT {username} {list_user_name}")
         result = receive_response(self.sock)
         self.close_connection()
         return result
@@ -199,8 +251,12 @@ class P2PClient:
                 print(self.connect(command[1]))
             elif cmd == "DISCONNECT" and len(command) == 2:
                 print(self.disconnect(command[1]))
-            elif cmd == "PUBLISH" and len(command) == 3:
-                print(self.publish_content(self.user_name , command[1], command[2]))
+            elif cmd == "PUBLISH" and len(command) >= 3:
+                descripcion = "'" + command[2]
+                for palabra in range(len(command)-3):
+                    descripcion += " " + command[palabra+3]
+                descripcion += "'"
+                print(self.publish_content(self.user_name , command[1], descripcion))
             elif cmd == "DELETE" and len(command) == 2:
                 print(self.delete_content(self.user_name , command[1]))
             elif cmd == "LIST_USERS" and len(command) == 1:

@@ -7,15 +7,10 @@ struct peticion  {
 	char user_name[256];
 	char file_name[256];
 	char description[256];
+	char remote_user_name[256];
 	char remote_file_name[256];
-	char loca_file_name[256];
+	char local_file_name[256];
 	char err_msg[50];
-};
-
-struct user_info {
-	char user_name[256];
-	char ip[16];
-	char port[6];
 };
 
 #endif // MENSAJE_H

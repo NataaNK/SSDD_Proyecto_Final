@@ -243,7 +243,11 @@ int tratar_mensaje(void *args_trat_msg){
 
 						// Si no está publicado aún añadirlo
 						if (resultado != 3){
-							cJSON *new_item = cJSON_CreateString(mensaje.file_name);
+							char file_and_description[512];
+							strcpy(file_and_description, mensaje.file_name);
+							strcat(file_and_description, " ");
+							strcat(file_and_description, mensaje.description);
+							cJSON *new_item = cJSON_CreateString(file_and_description);
     						cJSON_AddItemToArray(array, new_item);
 							// Convertir cJSON object a JSON string 
 							char *json_str = cJSON_Print(json);
@@ -346,6 +350,7 @@ int tratar_mensaje(void *args_trat_msg){
 	/* LIST_USERS */
     else if (mensaje.op == 5){
 		printf("LIST_USERS FROM %s\n", mensaje.user_name);
+
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
 		if (json == NULL){
@@ -436,6 +441,79 @@ int tratar_mensaje(void *args_trat_msg){
     else if (mensaje.op == 6){
 		printf("LIST_CONTENT FROM %s\n", mensaje.user_name);
 
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("data.json");
+		if (json == NULL){
+			resultado = 3;
+		}
+		else {
+			cJSON *json_conn = read_json("users_connected.json");
+			if (json_conn == NULL){
+				resultado = 3;
+			}
+			else{
+				// Si el usuario no está conectado
+				cJSON *item_conn = cJSON_GetObjectItemCaseSensitive(json_conn, mensaje.user_name);
+				if (item_conn == NULL){
+					resultado = 2;
+				}
+				else {
+					// Si no existe el usuario
+					cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+					cJSON *item_remote = cJSON_GetObjectItemCaseSensitive(json, mensaje.remote_user_name);
+					if (item == NULL){
+						resultado = 1;
+					}
+					// Si no existe el usuario remoto
+					else if (item_remote == NULL) {
+						resultado = 3;
+					}
+					else{
+					
+						// Enviar código 0
+						int err;
+						resultado = htonl(resultado);
+						err = sendMessage(sc, (char *)&resultado, sizeof(int32_t)); 
+						if (err == -1) {
+							printf("Error en envío\n");
+							close(sc);
+						}
+
+						// Calcular publicaciones a enviar
+						int content_count = cJSON_GetArraySize(item_remote);
+		
+
+						// Enviar al cliente cuantas publicaciones hay 
+						content_count = htonl(content_count);
+						err = sendMessage(sc, (char *)&content_count, sizeof(int32_t));  
+						if (err == -1) {
+							printf("Error en envío\n");
+							close(sc);
+						}
+
+						// Enviar info publicaciones, línea a línea
+						int i;
+						for (i = 0; i < content_count; i++) {
+							cJSON *content_item = cJSON_GetArrayItem(item_remote, i);
+							if (content_item != NULL) {
+								char *content_str = cJSON_PrintUnformatted(content_item);
+								if (content_str != NULL) {
+									// Enviar cada publicación como una línea
+									sendMessage(sc, content_str, strlen(content_str));
+									sendMessage(sc, "\n", 1);  // Enviar nueva línea para separar las publicaciones
+									free(content_str);
+								}
+							}
+						}
+
+
+						}
+					}
+					
+				}
+				cJSON_Delete(json_conn);
+			}
+			cJSON_Delete(json);
     } 
 	/* DISCONNECT */
     else if (mensaje.op == 7){
