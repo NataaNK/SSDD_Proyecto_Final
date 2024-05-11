@@ -244,39 +244,45 @@ class P2PClient:
         pass
 
     def shell(self):
-        while True:
-            command = input("c> ").strip().split()
-            if not command:
-                continue
-            cmd = command[0].upper()
-            if cmd == "REGISTER" and len(command) == 2:
-                self.user_name = command[1]
-                print(self.register(command[1]))
-            elif cmd == "UNREGISTER" and len(command) == 2:
-                print(self.unregister(command[1]))
-            elif cmd == "CONNECT" and len(command) == 2:
-                self.user_name = command[1]
-                print(self.connect(command[1]))
-            elif cmd == "DISCONNECT" and len(command) == 2:
-                print(self.disconnect(command[1]))
-            elif cmd == "PUBLISH" and len(command) >= 3:
-                descripcion = "'" + command[2]
-                for palabra in range(len(command)-3):
-                    descripcion += " " + command[palabra+3]
-                descripcion += "'"
-                print(self.publish_content(self.user_name , command[1], descripcion))
-            elif cmd == "DELETE" and len(command) == 2:
-                print(self.delete_content(self.user_name , command[1]))
-            elif cmd == "LIST_USERS" and len(command) == 1:
-                print(self.list_users(self.user_name ))
-            elif cmd == "LIST_CONTENT" and len(command) == 2:
-                print(self.list_content(self.user_name , command[1]))
-            elif cmd == "QUIT":
-                print("Exiting...")
-                break
-            else:
-                print("Unknown command or incorrect number of arguments")
+        try:
+            while True:
+                    command = input("c> ").strip().split()
+                    if not command:
+                        continue
+                    cmd = command[0].upper()
+                    if cmd == "REGISTER" and len(command) == 2:
+                        self.user_name = command[1]
+                        print(self.register(command[1]))
+                    elif cmd == "UNREGISTER" and len(command) == 2:
+                        print(self.unregister(command[1]))
+                        self.disconnect(command[1])
+                    elif cmd == "CONNECT" and len(command) == 2:
+                        self.user_name = command[1]
+                        print(self.connect(command[1]))
+                    elif cmd == "DISCONNECT" and len(command) == 2:
+                        print(self.disconnect(command[1]))
+                    elif cmd == "PUBLISH" and len(command) >= 3:
+                        descripcion = "'" + command[2]
+                        for palabra in range(len(command)-3):
+                            descripcion += " " + command[palabra+3]
+                        descripcion += "'"
+                        print(self.publish_content(self.user_name , command[1], descripcion))
+                    elif cmd == "DELETE" and len(command) == 2:
+                        print(self.delete_content(self.user_name , command[1]))
+                    elif cmd == "LIST_USERS" and len(command) == 1:
+                        print(self.list_users(self.user_name ))
+                    elif cmd == "LIST_CONTENT" and len(command) == 2:
+                        print(self.list_content(self.user_name , command[1]))
+                    elif cmd == "QUIT":
+                        self.disconnect(self.user_name)
+                        print("Exiting...")
+                        break
+                    else:
+                        print("Unknown command or incorrect number of arguments")
 
+        except KeyboardInterrupt:
+            self.disconnect(self.user_name)
+      
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Client for a P2P File Distribution System')
     parser.add_argument('-s', '--server', required=True, help='Server IP address')

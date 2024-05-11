@@ -518,6 +518,44 @@ int tratar_mensaje(void *args_trat_msg){
 	/* DISCONNECT */
     else if (mensaje.op == 7){
 		printf("DISCONNECT FROM %s\n", mensaje.user_name);
+
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("data.json");
+		cJSON *json_conn = read_json("users_connected.json");
+		if (json == NULL){
+			resultado = 3;
+		}
+		else if(json_conn == NULL){
+			resultado = 3;
+		}
+		else {
+			// No existe el usuario
+			cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+			cJSON *item_conn = cJSON_GetObjectItemCaseSensitive(json_conn, mensaje.user_name);
+			if (item == NULL){
+				resultado = 1; 
+			}
+			// El usuario no está conectado
+			else if (item_conn == NULL){
+				resultado = 2;
+			}
+			else {
+				cJSON_DeleteItemFromObject(json_conn, mensaje.user_name);
+			
+				// Covertir cJSON object a JSON string 
+				char *json_str = cJSON_Print(json_conn); 
+			
+				// Escribir JSON string al archivo
+				if (write_json("users_connected.json", json_str) < 0){
+					resultado = 2;
+				}
+
+				// Liberar el JSON string y cJSON object 
+				cJSON_free(json_str); 
+				cJSON_Delete(json);
+				cJSON_Delete(json_conn);
+			}
+		}
 	}
 	/* GET_FILE*/
 	else if (mensaje.op == 8){
