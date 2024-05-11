@@ -290,7 +290,7 @@ class P2PClient:
         self.close_connection()
         return result
 
-    def get_file(self, remote_username, file_name, local_file_name):
+    def get_file(self, username, remote_username, file_name, local_file_name):
         # This method would be responsible for peer-to-peer file transfers
         pass
 
@@ -324,6 +324,8 @@ class P2PClient:
                         print(self.list_users(self.user_name ))
                     elif cmd == "LIST_CONTENT" and len(command) == 2:
                         print(self.list_content(self.user_name , command[1]))
+                    elif cmd == "GET_FILE" and len(command) == 4:
+                        print(self.get_file(self.user_name, command[1], command[2], command[3]))
                     elif cmd == "QUIT":
                         self.disconnect(self.user_name)
                         print("Exiting...")
