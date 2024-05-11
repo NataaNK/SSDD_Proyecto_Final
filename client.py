@@ -7,6 +7,7 @@ from threading import Thread
 import socket
 import threading
 from random import randint
+import os
 
 
 
@@ -92,26 +93,44 @@ def receive_line(sock):
         line += part
     return line.decode('utf-8')
 
-def receive_ip_and_port(sock):
-    # Recibir la longitud del mensaje en bytes
-    length_bytes = sock.recv(4)
-    if not length_bytes:
-        return "CONNECTION ERROR"  # Manejar caso de desconexión
-    length = int.from_bytes(length_bytes, byteorder='big')
-
-    # Recibir la respuesta completa
-    response_bytes = sock.recv(length)
-    if not response_bytes:
-        return "CONNECTION ERROR"
-
+def receive_file_from_host(ip, port, remote_file_name, local_file_name):
     try:
-        # Intentar convertir la respuesta a entero
-        response = int(response_bytes.decode('utf-8').strip())
-    except ValueError:
-        # Si falla la conversión a entero, manejar como cadena
-        response = response_bytes.decode('utf-8').strip()
+        # Conectar al host remoto
+        remote_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        remote_sock.connect((ip, int(port)))
+        
+        # Enviar solicitud de archivo
+        request_message = f"GET_FILE {remote_file_name}"
+        remote_sock.sendall(request_message.encode())
 
-    return response
+        # Recibir la respuesta del servidor remoto
+        server_response = remote_sock.recv(1)
+        response_code = int.from_bytes(server_response, byteorder='big')
+
+        if response_code == 0:
+            # Recibir y escribir el archivo
+            with open(local_file_name, 'wb') as file:
+                while True:
+                    data = remote_sock.recv(4096)
+                    if not data:
+                        break
+                    file.write(data)
+            return "GET_FILE OK"
+        elif response_code == 1:
+            if os.path.exists(local_file_name):
+                os.remove(local_file_name)  # Elimina el archivo local si la descarga no fue exitosa
+                return "GET_FILE FAIL / FILE NOT EXIST"
+        else:
+            if os.path.exists(local_file_name):
+                os.remove(local_file_name)  # Elimina el archivo local si la descarga no fue exitosa
+            return "GET_FILE FAIL"
+
+    except Exception as e:
+        if os.path.exists(local_file_name):
+            os.remove(local_file_name)  # Asegúrate de no dejar un archivo parcialmente descargado
+        return "GET_FILE FAIL"
+    finally:
+        remote_sock.close()  # Asegúrate de cerrar la conexión independientemente del resultado
         
 
 def find_free_port():
@@ -123,8 +142,37 @@ def find_free_port():
 
 
 def process_request(client_sock):
-    # Aquí se manejaría la petición, por ejemplo, recibir una solicitud de fichero y enviarlo.
-    pass
+    # Recibir una solicitud de fichero y enviarlo.
+    try:
+        # Recibir la solicitud
+        request = client_sock.recv(1024).decode('utf-8')
+        print(f"Received request: {request}")
+        parts = request.split()
+        command, file_name = parts[0], parts[1]
+
+        # Verificar si el archivo existe
+        if os.path.exists(file_name):
+            # Preparar el archivo para enviar
+            with open(file_name, 'rb') as file:
+                # Notificar al cliente que el archivo será enviado
+                client_sock.sendall(b'\x00')  # Código de operación: 0 -> archivo se transferirá
+                # Enviar el contenido del archivo
+                data = file.read(4096)
+                while data:
+                    client_sock.sendall(data)
+                    data = file.read(4096)
+            print("File sent successfully.")
+        else:
+            # Notificar al cliente que el archivo no existe
+            client_sock.sendall(b'\x01')  # Código de operación: 1 -> archivo no existe
+            print("File does not exist.")
+
+    except Exception as e:
+        print(f"Error handling request: {e}")
+        client_sock.sendall(b'\x02')  # Código de operación: 2 -> error general
+
+    finally:
+        client_sock.close()
 
 
 class P2PClient:
@@ -332,6 +380,9 @@ class P2PClient:
             ip_port_data = self.sock.recv(1024).decode()
             ip, port = ip_port_data.split()
             # CONECTARSE A CLIENTE REMOTO Y DESCARGAR ARCHIVO
+            remote_file_name = os.path.abspath(remote_file_name)
+            local_file_name = os.path.abspath(local_file_name)
+            result = receive_file_from_host(ip, port, remote_file_name, local_file_name)
 
         self.close_connection()
 
