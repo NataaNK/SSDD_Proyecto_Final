@@ -52,7 +52,7 @@ struct args_tratar_msg  {
     int sc;
 };
 
-int tratar_mensaje(void *args_trat_msg){
+void *tratar_mensaje(void *args_trat_msg){
 	struct peticion mensaje;	/* mensaje local */
 	struct sockaddr_in client_addr; /* addr del cliente local*/
 	int resultado;	/* resultado de la operación */
@@ -98,7 +98,7 @@ int tratar_mensaje(void *args_trat_msg){
 			}
 			else {
 				// Array vacío
-				cJSON *array = cJSON_AddArrayToObject(json,  mensaje.user_name);
+				cJSON_AddArrayToObject(json,  mensaje.user_name);
 
 				// Convertir cJSON object a JSON string 
 				char *json_str = cJSON_Print(json);
@@ -638,7 +638,8 @@ int tratar_mensaje(void *args_trat_msg){
 		close(sc);
 	}
 
-	pthread_exit(0);
+	pthread_exit(NULL);
+	return(NULL);
 }
 
 
@@ -805,7 +806,7 @@ int main(int argc, char **argv) {
 		memcpy(&args_trat_msg.client_addr, &client_addr, sizeof(struct sockaddr_in));
 		args_trat_msg.sc = sc;
 
-		if (pthread_create(&thid, &t_attr, (void *)tratar_mensaje, (void *)&args_trat_msg) == 0) {
+		if (pthread_create(&thid, &t_attr, tratar_mensaje, (void *)&args_trat_msg) == 0) {
             // se espera a que el thread copie el mensaje 
             pthread_mutex_lock(&mutex_mensaje);
             while (mensaje_no_copiado){

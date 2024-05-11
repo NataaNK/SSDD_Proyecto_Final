@@ -390,50 +390,86 @@ class P2PClient:
     def shell(self):
         try:
             while True:
-                    command = input("c> ").strip().split()
-                    if not command:
-                        continue
-                    cmd = command[0].upper()
-                    if cmd == "REGISTER" and len(command) == 2:
+                command = input("c> ").strip().split()
+                if not command:
+                    continue
+                cmd = command[0].upper()
+                if cmd == "REGISTER":
+                    if len(command) == 2:
                         self.user_name = command[1]
                         print(self.register(command[1]))
-                    elif cmd == "UNREGISTER" and len(command) == 2:
+                    else:
+                        print("Syntax error. Usage: REGISTER <userName>")
+                elif cmd == "UNREGISTER":
+                    if len(command) == 2:
                         print(self.unregister(command[1]))
                         self.disconnect(command[1])
-                    elif cmd == "CONNECT" and len(command) == 2:
+                    else:
+                        print("Syntax error. Usage: UNREGISTER <userName>")
+                elif cmd == "CONNECT":
+                    if len(command) == 2:
                         self.user_name = command[1]
                         print(self.connect(command[1]))
-                    elif cmd == "DISCONNECT" and len(command) == 2:
+                    else:
+                        print("Syntax error. Usage: CONNECT <userName>")
+                elif cmd == "DISCONNECT":
+                    if len(command) == 2:
                         print(self.disconnect(command[1]))
-                    elif cmd == "PUBLISH" and len(command) >= 3:
-                        descripcion = "'" + command[2]
-                        for palabra in range(len(command)-3):
-                            descripcion += " " + command[palabra+3]
-                        descripcion += "'"
-                        print(self.publish_content(self.user_name , command[1], descripcion))
-                    elif cmd == "DELETE" and len(command) == 2:
-                        print(self.delete_content(self.user_name , command[1]))
-                    elif cmd == "LIST_USERS" and len(command) == 1:
-                        print(self.list_users(self.user_name ))
-                    elif cmd == "LIST_CONTENT" and len(command) == 2:
-                        print(self.list_content(self.user_name , command[1]))
-                    elif cmd == "GET_FILE" and len(command) == 4:
+                    else:
+                        print("Syntax error. Usage: DISCONNECT <userName>")
+                elif cmd == "PUBLISH":
+                    if len(command) >= 3:
+                        description = ' '.join(command[2:])
+                        print(self.publish_content(self.user_name, command[1], description))
+                    else:
+                        print("Syntax error. Usage: PUBLISH <fileName> <description>")
+                elif cmd == "DELETE":
+                    if len(command) == 2:
+                        print(self.delete_content(self.user_name, command[1]))
+                    else:
+                        print("Syntax error. Usage: DELETE <fileName>")
+                elif cmd == "LIST_USERS":
+                    if len(command) == 1:
+                        print(self.list_users(self.user_name))
+                    else:
+                        print("Syntax error. Use: LIST_USERS")
+                elif cmd == "LIST_CONTENT":
+                    if len(command) == 2:
+                        print(self.list_content(self.user_name, command[1]))
+                    else:
+                        print("Syntax error. Usage: LIST_CONTENT <userName>")
+                elif cmd == "GET_FILE":
+                    if len(command) == 4:
                         print(self.get_file(self.user_name, command[1], command[2], command[3]))
-                    elif cmd == "QUIT":
+                    else:
+                        print("Syntax error. Usage: GET_FILE <userName> <remote_fileName> <local_fileName>")
+                elif cmd == "QUIT":
+                    if len(command) == 1:
                         self.disconnect(self.user_name)
-                        print("Exiting...")
+                        print("+++ FINISHED +++")
                         break
                     else:
-                        print("Unknown command or incorrect number of arguments")
+                        print("Syntax error. Use: QUIT")
+                else:
+                    print(f"Error: command {cmd} not valid.")
 
         except KeyboardInterrupt:
             self.disconnect(self.user_name)
+            print("+++ FINISHED +++")
+        
+        
       
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Client for a P2P File Distribution System')
     parser.add_argument('-s', '--server', required=True, help='Server IP address')
     parser.add_argument('-p', '--port', required=True, type=int, help='Server port')
     args = parser.parse_args()
 
+    if args.port < 1024 or args.port > 65535:
+        parser.error("Error: Port must be in the range 1024 <= port <= 65535")
+    if not args.server:
+        parser.error("Usage: python3 client.py -s <server> -p <port>")
+    
     client = P2PClient(args.server, args.port)
     client.shell()

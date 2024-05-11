@@ -2,6 +2,7 @@
 #include "sockets_functions.h"
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 #include <stdint.h> // Para usar tipos de ancho fijo
 #include <arpa/inet.h> // Para ntohl()
 
