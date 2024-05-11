@@ -394,8 +394,23 @@ int tratar_mensaje(void *args_trat_msg){
 							close(sc);
 						}
 
-						for (int i = 0; i < key_count; i++){
-							printf("ME DA PALO");
+						cJSON *user_item = NULL;
+						cJSON_ArrayForEach(user_item, json_conn) {
+							struct user_info user;
+							cJSON *user_data = user_item->child;
+
+							// Lo he intentado con esto y da SIGSEGV
+							// He creado la estructura user_info y su serializador
+							strncpy(user.user_name, user_item->string, sizeof(user.user_name)-1);  // Nombre de usuario
+							user.user_name[sizeof(user.user_name) - 1] = '\0';  // Asegura NULL-termination
+							strncpy(user.ip, cJSON_GetArrayItem(user_data, 0)->valuestring, sizeof(user.ip)-1);  // IP
+							user.ip[sizeof(user.ip) - 1] = '\0';
+							strncpy(user.port, cJSON_GetArrayItem(user_data, 1)->valuestring, sizeof(user.port)-1);
+							user.port[sizeof(user.port) - 1] = '\0';  // Puerto
+
+							char *serialized = serialize_user_info(user);
+							sendMessage(sc, serialized, strlen(serialized));  // Enviar la información serializada
+							free(serialized);
 						}
 
 						

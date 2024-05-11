@@ -17,6 +17,17 @@ char* serialize_message_to_server(struct peticion request) {
     return out;
 }
 
+char* serialize_user_info(struct user_info user) {
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "user_name", user.user_name);
+    cJSON_AddStringToObject(root, "ip", user.ip);
+    cJSON_AddStringToObject(root, "port", user.port);
+
+    char *out = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return out;
+}
+
 
 // Función auxiliar para obtener el código de operación basado en el nombre de la operación
 int get_op_code(const char* op_name) {

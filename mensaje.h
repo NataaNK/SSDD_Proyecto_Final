@@ -12,4 +12,10 @@ struct peticion  {
 	char err_msg[50];
 };
 
+struct user_info {
+	char user_name[256];
+	char ip[16];
+	char port[6];
+};
+
 #endif // MENSAJE_H
