@@ -3,5 +3,6 @@
         "buffer": "c",
         "ifaddrs.h": "c",
         "mensaje_json.h": "c"
-    }
+    },
+    "cmake.sourceDirectory": "/home/nata/Escritorio/SSDD/SSDD_Proyecto_Final/cJSON"
 }

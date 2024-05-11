@@ -1,0 +1,30 @@
+# Compiler
+CC = gcc
+
+CFLAGS += -g -I/usr/include/tirpc -Wall -Wextra -pedantic -std=c11 -I$(CJSON_DIR) -I -fPIC
+LDLIBS += -lnsl -lpthread -lrt -ldl -ltirpc -L. -L/usr/lib64
+
+
+# Files
+SOURCES_CLNT=RPC_Print_clnt.c
+SOURCES_SVC=RPC_Print_svc.c
+SOURCES_XDR=RPC_Print_xdr.c
+OBJECTS_CLNT=$(SOURCES_CLNT:.c=.o)
+OBJECTS_SVC=$(SOURCES_SVC:.c=.o)
+OBJECTS_XDR=$(SOURCES_XDR:.c=.o)
+
+
+.PHONY: all clean
+
+all : cJSON servidor
+
+# Link the server
+servidor: servidor.o $(OBJECTS_SVC) $(OBJECTS_XDR)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+
+# Compile object files from C sources
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@ -fPIC
+
+clean:
+	rm -f *.o servidor
