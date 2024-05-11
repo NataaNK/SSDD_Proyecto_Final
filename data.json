@@ -2,5 +2,7 @@
 	"gfhjbdn":	[],
 	"loco":	[],
 	"js":	["text.txt 'Es un texto que mola'", "ejemplo.py 'Ejemplo de python'"],
-	"NATA":	[]
+	"NATA":	[],
+	"A":	["A 'a'"],
+	"N":	["N 'n'"]
 }

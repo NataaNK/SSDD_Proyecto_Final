@@ -564,10 +564,73 @@ int tratar_mensaje(void *args_trat_msg){
 	else if (mensaje.op == 8){
 		printf("GET_FILE FROM %s\n", mensaje.user_name);
 
+		// Leer cotenido base de datos y obtener json
+		cJSON *json = read_json("data.json");
+		if (json == NULL){
+			resultado = 3;
+		}
+		else {
+			cJSON *json_conn = read_json("users_connected.json");
+			if (json_conn == NULL){
+				resultado = 3;
+			}
+			else{
+				// Si el usuario no está conectado
+				cJSON *item_conn = cJSON_GetObjectItemCaseSensitive(json_conn, mensaje.user_name);
+				cJSON *item_rem = cJSON_GetObjectItemCaseSensitive(json, mensaje.remote_user_name);
+				cJSON *item_conn_rem = cJSON_GetObjectItemCaseSensitive(json_conn, mensaje.remote_user_name);
+				if (item_conn == NULL){
+					resultado = 2;
+				}
+				// Si el usuario remoto no existe
+				else if (item_rem == NULL){
+					resultado = 4;
+				}
+				// Si el usuario remoto no está conectado
+				else if(item_conn_rem == NULL){
+					resultado = 5;
+				}
+				else {
+					// Si no existe el usuario
+					cJSON *item = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
+					if (item == NULL){
+						resultado = 1;
+					}
+					else{
+						 // Verificar si el archivo está publicado
+						cJSON *files = cJSON_GetObjectItemCaseSensitive(json, mensaje.remote_user_name);
+						char *file_list = cJSON_Print(files);
+						if (!strstr(file_list, mensaje.remote_file_name)) {
+							resultado = 6;  // Archivo no está publicado
+						} else {
+							// Enviar código 0
+							int err;
+							resultado = htonl(resultado);
+							err = sendMessage(sc, (char *)&resultado, sizeof(int32_t)); 
+							if (err == -1) {
+								printf("Error en envío\n");
+								close(sc);
+							}
+
+							// El archivo está publicado, proceder a enviar ip y puerto
+							cJSON *remote_user_info = cJSON_GetArrayItem(item_conn_rem, 0);
+							cJSON *remote_user_port = cJSON_GetArrayItem(item_conn_rem, 1);
+							char *ip = cJSON_GetStringValue(remote_user_info);
+							char *port = cJSON_GetStringValue(remote_user_port);
+							char response[1024];
+							snprintf(response, sizeof(response), "%s %s", ip, port); // IP y puerto
+							send(sc, response, strlen(response), 0); // Enviar datos al cliente solicitante
+						}
+						free(file_list);
+						}
+					}
+				}
+				cJSON_Delete(json_conn);
+			}
+			cJSON_Delete(json);
 	}
 
 	int err;
-	// Serializar la estructura resultado en un JSON string
 	resultado = htonl(resultado);
 	err = sendMessage(sc, (char *)&resultado, sizeof(int32_t));  // envía el resultado
 	if (err == -1) {

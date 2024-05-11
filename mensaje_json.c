@@ -36,14 +36,14 @@ void deserialize_message_from_client(const char* message, struct peticion* reque
     memset(request, 0, sizeof(struct peticion));
 
     char operation[50];
-    sscanf(message, "%s", operation);
-    request->op = get_op_code(operation);
+    sscanf(message, "%s", operation);  // Extraer el tipo de operación
+    request->op = get_op_code(operation);  // Obtener el código de la operación
 
     switch (request->op) {
         case 0: // REGISTER
         case 1: // UNREGISTER
         case 7: // DISCONNECT
-            sscanf(message, "%*s %s", request->user_name);
+            sscanf(message, "%*s %s", request->user_name);  // Extraer solo user_name
             break;
         case 2: // CONNECT
             // Se espera recibir "CONNECT username listen_port"
@@ -53,7 +53,7 @@ void deserialize_message_from_client(const char* message, struct peticion* reque
             sscanf(message, "%*s %s %s %[^\t\n]", request->user_name, request->file_name, request->description);
             break;
         case 4: // DELETE
-            sscanf(message, "%*s %s", request->user_name);
+            sscanf(message, "%*s %s", request->user_name);  // Solo se necesita user_name
             break;
         case 6: // LIST_CONTENT
             sscanf(message, "%*s %s %s", request->user_name, request->remote_user_name);
@@ -62,7 +62,8 @@ void deserialize_message_from_client(const char* message, struct peticion* reque
             sscanf(message, "%*s %s", request->user_name);
             break;
         case 8: // GET_FILE
-            sscanf(message, "%*s %s %s %s", request->user_name, request->remote_file_name, request->local_file_name);
+            // Se espera recibir "GET_FILE username remote_username remote_file_name local_file_name"
+            sscanf(message, "%*s %s %s %s %s", request->user_name, request->remote_user_name, request->remote_file_name, request->local_file_name);
             break;
         default:
             sprintf(request->err_msg, "Operación desconocida.");

@@ -92,6 +92,28 @@ def receive_line(sock):
         line += part
     return line.decode('utf-8')
 
+def receive_ip_and_port(sock):
+    # Recibir la longitud del mensaje en bytes
+    length_bytes = sock.recv(4)
+    if not length_bytes:
+        return "CONNECTION ERROR"  # Manejar caso de desconexión
+    length = int.from_bytes(length_bytes, byteorder='big')
+
+    # Recibir la respuesta completa
+    response_bytes = sock.recv(length)
+    if not response_bytes:
+        return "CONNECTION ERROR"
+
+    try:
+        # Intentar convertir la respuesta a entero
+        response = int(response_bytes.decode('utf-8').strip())
+    except ValueError:
+        # Si falla la conversión a entero, manejar como cadena
+        response = response_bytes.decode('utf-8').strip()
+
+    return response
+        
+
 def find_free_port():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(("", 0))  # Bind to an available port provided by the host.
@@ -290,9 +312,30 @@ class P2PClient:
         self.close_connection()
         return result
 
-    def get_file(self, username, remote_username, file_name, local_file_name):
-        # This method would be responsible for peer-to-peer file transfers
-        pass
+    def get_file(self, username, remote_username, remote_file_name, local_file_name):
+        self.connect_to_server()
+        send_message(self.sock, f"GET_FILE {username} {remote_username} {remote_file_name} {local_file_name}")
+        result = receive_response(self.sock)
+        if result == 1:
+            result = "GET_FILE FAIL, USER DOES NOT EXIST"
+        elif result == 2: 
+            result = "GET_FILE FAIL, USER NOT CONNECTED" 
+        elif result == 3: 
+            result = "GET_FILE FAIL"
+        elif result == 4: 
+            result = "GET_FILE FAIL, REMOTE USER DOES NOT EXIST"
+        elif result == 5: 
+            result = "GET_FILE FAIL, REMOTE USER NOT CONNECTED"
+        elif result == 6:
+            result = "GET_FILE FAIL / FILE NOT EXIST"
+        else:
+            ip_port_data = self.sock.recv(1024).decode()
+            ip, port = ip_port_data.split()
+            # CONECTARSE A CLIENTE REMOTO Y DESCARGAR ARCHIVO
+
+        self.close_connection()
+
+        return result
 
     def shell(self):
         try:
