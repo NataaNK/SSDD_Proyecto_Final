@@ -1,21 +1,17 @@
-# Compiler
-CC = gcc
-
 # Compiler flags
-CFLAGS = -Wall -Wextra -pedantic -std=c11 -I$(CJSON_DIR) -I/usr/include/tirpc
+CFLAGS = -Wall -Wextra -pedantic -std=c11 -I$(CJSON_DIR) -I/usr/include/tirpc -IRPC
 
 # Linker flags
 LDFLAGS = -L. -Wl,-rpath=$(CJSON_DIR) -Wl,-rpath=$(CJSON_DIR)/$(CJSON_DIR) -lcjson -L$(CJSON_DIR) -lpthread -lrt -ltirpc
 
 # Source files
-SERVER_SRC = server.c
-SOCKETS_SRC = sockets_functions.c 
+SERVER_SRC = server.c RPC_Print_client.c RPC_Print_clnt.c RPC_Print_xdr.c
+SOCKETS_SRC = sockets_functions.c
 MSG_JSON_SRC = mensaje_json.c
-
 
 # Object files
 SERVER_OBJ = $(SERVER_SRC:.c=.o)
-SOCKETS_OBJ = $(SOCKETS_SRC:.c=.o) 
+SOCKETS_OBJ = $(SOCKETS_SRC:.c=.o)
 MSG_JSON_OBJ = $(MSG_JSON_SRC:.c=.o)
 
 # Target executables and library

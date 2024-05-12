@@ -23,6 +23,7 @@
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <net/if.h>
+#include "RPC_Print_client.h"
 #include "sockets_functions.h"
 #include "mensaje_json.h"
 
@@ -85,7 +86,8 @@ void *tratar_mensaje(void *args_trat_msg){
 
 		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
 		strcpy(mensaje.file_name, "");
-		print_user_op("localhost", mensaje.user_name, "REGISTER", mensaje.file_name, mensaje.time);
+		char op_name[9] = "REGISTER\0";
+		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
 
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
@@ -122,6 +124,11 @@ void *tratar_mensaje(void *args_trat_msg){
     } else if (mensaje.op == 1){
 		printf("UNREGISTER FROM %s\n", mensaje.user_name);
 
+		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+		strcpy(mensaje.file_name, "");
+		char op_name[11] = "UNREGISTER\0";
+		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
+
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
 		if (json == NULL){
@@ -153,6 +160,11 @@ void *tratar_mensaje(void *args_trat_msg){
 	/* CONNECT */
     } else if (mensaje.op == 2){
 		printf("CONNECT %s\n", mensaje.user_name);
+
+		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+		strcpy(mensaje.file_name, "");
+		char op_name[8] = "CONNECT\0";
+		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
 
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("users_connected.json");
@@ -200,6 +212,10 @@ void *tratar_mensaje(void *args_trat_msg){
 	/* PUBLISH */
     } else if (mensaje.op == 3){
 		printf("PUBLISH FROM %s\n", mensaje.user_name);
+
+		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+		char op_name[8] = "PUBLISH\0";
+		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
 
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
@@ -275,6 +291,10 @@ void *tratar_mensaje(void *args_trat_msg){
 	/* DELETE */
     } else if (mensaje.op == 4){
 		printf("DELETE FROM %s\n", mensaje.user_name);
+
+		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+		char op_name[7] = "DELETE\0";
+		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
 
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
@@ -353,6 +373,11 @@ void *tratar_mensaje(void *args_trat_msg){
 	/* LIST_USERS */
     else if (mensaje.op == 5){
 		printf("LIST_USERS FROM %s\n", mensaje.user_name);
+
+		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+		strcpy(mensaje.file_name, "");
+		char op_name[11] = "LIST_USERS\0";
+		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
 
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
@@ -444,6 +469,11 @@ void *tratar_mensaje(void *args_trat_msg){
     else if (mensaje.op == 6){
 		printf("LIST_CONTENT FROM %s\n", mensaje.user_name);
 
+		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+		strcpy(mensaje.file_name, "");
+		char op_name[13] = "LIST_CONTENT\0";
+		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
+
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
 		if (json == NULL){
@@ -521,6 +551,11 @@ void *tratar_mensaje(void *args_trat_msg){
 	/* DISCONNECT */
     else if (mensaje.op == 7){
 		printf("DISCONNECT FROM %s\n", mensaje.user_name);
+	
+		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+		strcpy(mensaje.file_name, "");
+		char op_name[11] = "DISCONNECT\0";
+		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
 
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
@@ -710,7 +745,12 @@ int main(int argc, char **argv) {
 	struct args_tratar_msg args_trat_msg;
     char ip_display[INET_ADDRSTRLEN] = "0.0.0.0";
 
-	if ((argc != 3) && (strcmp(argv[1], "-p")!=0)){
+	if (argc != 3){
+		printf("Usage: ./ server -p < port >\n");
+		return -1;
+	}
+
+	if(strcmp(argv[1], "-p")!=0){
 		printf("Usage: ./ server -p < port >\n");
 		return -1;
 	}
