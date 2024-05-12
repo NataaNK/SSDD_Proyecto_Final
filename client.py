@@ -1,3 +1,11 @@
+"""
+    Autores: Natalia Rodríguez Navarro (100471976)
+             Arturo Soto Ruedas (100472007)
+
+    Cliente socket que permite las operaciones descritas en
+    el enunciado.
+"""
+
 import errno
 import socket
 import sys

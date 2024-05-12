@@ -2,6 +2,9 @@
     Autores: Natalia Rodríguez Navarro (100471976)
              Arturo Soto Ruedas (100472007)
 
+    Módulo que implementa el servidor socket que realiza las operaciones
+	y se encarga de la lógica de las peticiones del cliente socket en Python.
+	También se comunica con el servidor RPC para mandarle una operación.
 */
 
 #include <pthread.h>

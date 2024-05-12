@@ -1,3 +1,11 @@
+/*
+    Autores: Natalia Rodríguez Navarro (100471976)
+             Arturo Soto Ruedas (100472007)
+
+    Módulo que implementa la biblioteca de  cliente RPC
+    para poder acceder al servicio remoto del servidor RPC.
+*/
+
 
 #include "RPC_Print.h"
 #include <stdio.h>
@@ -21,13 +29,14 @@ void print_user_op(char *user_name, char *op_name, char *file_name, char *time) 
     CLIENT *clnt = communication_with_server();
     if (clnt == NULL) {
         printf("Error al comunicarse con el servidor\n");
-        exit(1); // Cambiar return a exit para cerrar el programa correctamente
+        exit(1);
     }
 
     enum clnt_stat retval;
     PrintArgs args;
 	void *res = NULL; 
 
+    // Obtener datos de los argumentos
     args.User_name = malloc(strlen(user_name)+1);
     args.Op_name = malloc(strlen(op_name)+1);
     args.File_name  = malloc(strlen(file_name)+1);

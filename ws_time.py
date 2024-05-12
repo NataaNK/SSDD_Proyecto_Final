@@ -1,3 +1,10 @@
+"""
+    Autores: Natalia Rodríguez Navarro (100471976)
+             Arturo Soto Ruedas (100472007)
+
+    Servicio web para dar la fecha.
+"""
+
 import time
 import datetime
 

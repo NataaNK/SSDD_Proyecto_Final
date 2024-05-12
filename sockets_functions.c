@@ -1,3 +1,11 @@
+/*
+    Autores: Natalia Rodríguez Navarro (100471976)
+             Arturo Soto Ruedas (100472007)
+
+    Módulo que implementa las operaciones de envío y recibo
+    de mensajes por sockets en C para nuestro programa.
+*/
+
 
 #include "sockets_functions.h"
 #include <unistd.h>

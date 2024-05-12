@@ -1,3 +1,11 @@
+/*
+    Autores: Natalia Rodríguez Navarro (100471976)
+             Arturo Soto Ruedas (100472007)
+
+    Módulo que implementa la obtención de datos de la petición
+    del cliente Pyhton al servidor socket en C.
+*/
+
 #include "cJSON.h"
 #include "mensaje.h"
 #include <stdio.h>
@@ -10,7 +18,7 @@ char* serialize_message_to_server(struct peticion request) {
     cJSON_AddStringToObject(root, "user_name", request.user_name);
     cJSON_AddStringToObject(root, "file_name", request.file_name);
     cJSON_AddStringToObject(root, "description", request.description);
-    cJSON_AddStringToObject(root, "time", request.time);  // Agregar el tiempo al JSON
+    cJSON_AddStringToObject(root, "time", request.time); 
     cJSON_AddStringToObject(root, "err_msg", request.err_msg);
 
     char *out = cJSON_PrintUnformatted(root);
