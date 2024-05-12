@@ -7,7 +7,7 @@
 #include "RPC_Print.h"
 
 bool_t
-print_user_op_1_svc(PrintArgs arg1, int *result,  struct svc_req *rqstp)
+print_user_op_1_svc(PrintArgs arg1, void *result,  struct svc_req *rqstp)
 {
 	bool_t retval;
 

@@ -83,6 +83,10 @@ void *tratar_mensaje(void *args_trat_msg){
 	if (mensaje.op == 0){
 		printf("REGISTER FROM %s\n", mensaje.user_name);
 
+		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+		strcpy(mensaje.file_name, "");
+		print_user_op("localhost", mensaje.user_name, "REGISTER", mensaje.file_name, mensaje.time);
+
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
 		if (json == NULL){

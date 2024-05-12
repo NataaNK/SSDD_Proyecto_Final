@@ -12,7 +12,7 @@ print_prog_1(char *host)
 {
 	CLIENT *clnt;
 	enum clnt_stat retval_1;
-	int result_1;
+	void *result_1;
 	PrintArgs print_user_op_1_arg1;
 
 #ifndef	DEBUG

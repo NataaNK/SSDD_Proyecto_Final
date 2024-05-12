@@ -2,10 +2,10 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -Wall -Wextra -pedantic -std=c11 -I$(CJSON_DIR)
+CFLAGS = -Wall -Wextra -pedantic -std=c11 -I$(CJSON_DIR) -I/usr/include/tirpc
 
 # Linker flags
-LDFLAGS = -L. -Wl,-rpath=$(CJSON_DIR) -Wl,-rpath=$(CJSON_DIR)/$(CJSON_DIR) -lcjson -L$(CJSON_DIR) -lpthread -lrt
+LDFLAGS = -L. -Wl,-rpath=$(CJSON_DIR) -Wl,-rpath=$(CJSON_DIR)/$(CJSON_DIR) -lcjson -L$(CJSON_DIR) -lpthread -lrt -ltirpc
 
 # Source files
 SERVER_SRC = server.c

@@ -8,6 +8,7 @@
 
 #include <rpc/rpc.h>
 
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,6 +18,7 @@ extern "C" {
 struct PrintArgs {
 	char *User_name;
 	char *Op_name;
+	char *File_name;
 	char *Time;
 };
 typedef struct PrintArgs PrintArgs;
@@ -26,14 +28,14 @@ typedef struct PrintArgs PrintArgs;
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define PRINT_USER_OP 1
-extern  int * print_user_op_1(PrintArgs *, CLIENT *);
-extern  int * print_user_op_1_svc(PrintArgs *, struct svc_req *);
+extern  enum clnt_stat print_user_op_1(PrintArgs , void *, CLIENT *);
+extern  bool_t print_user_op_1_svc(PrintArgs , void *, struct svc_req *);
 extern int print_prog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
 #define PRINT_USER_OP 1
-extern  int * print_user_op_1();
-extern  int * print_user_op_1_svc();
+extern  enum clnt_stat print_user_op_1();
+extern  bool_t print_user_op_1_svc();
 extern int print_prog_1_freeresult ();
 #endif /* K&R C */
 

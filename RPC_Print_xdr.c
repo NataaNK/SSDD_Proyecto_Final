@@ -14,6 +14,8 @@ xdr_PrintArgs (XDR *xdrs, PrintArgs *objp)
 		 return FALSE;
 	 if (!xdr_string (xdrs, &objp->Op_name, 15))
 		 return FALSE;
+	 if (!xdr_string (xdrs, &objp->File_name, 256))
+		 return FALSE;
 	 if (!xdr_string (xdrs, &objp->Time, 20))
 		 return FALSE;
 	return TRUE;
