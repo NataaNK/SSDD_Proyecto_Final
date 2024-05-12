@@ -216,10 +216,6 @@ void *tratar_mensaje(void *args_trat_msg){
     } else if (mensaje.op == 3){
 		printf("PUBLISH FROM %s\n", mensaje.user_name);
 
-		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
-		char op_name[8] = "PUBLISH\0";
-		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
-
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
 		if (json == NULL){
@@ -243,6 +239,10 @@ void *tratar_mensaje(void *args_trat_msg){
 						resultado = 1;
 					}
 					else{
+						// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+						char op_name[8] = "PUBLISH\0";
+						print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
+
 						// Comprobamos si ya ha publicado ese contenido
 						cJSON *array = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
 						int array_size = cJSON_GetArraySize(array);
@@ -253,15 +253,20 @@ void *tratar_mensaje(void *args_trat_msg){
 							cJSON_Delete(json);
 							resultado = 4;
 						}
-
+						
+						char copia[256]; // Copia para no modificar el string original
 						for (int i = 0; i < array_size; i++) {
 							cJSON *item = cJSON_GetArrayItem(array, i);
 							strings[i] = cJSON_GetStringValue(item);
+							strcpy(copia, strings[i]);
 
 							char *firstWord = strtok(strings[i], " ");  // Extraer la primera palabra del string.
 							if (firstWord != NULL && strcmp(firstWord, mensaje.file_name) == 0) {
 								resultado = 3;
 							}
+
+							// Restaurar string
+							strcpy(strings[i], copia);
 						}
 
 						// Si no está publicado aún añadirlo
@@ -295,10 +300,6 @@ void *tratar_mensaje(void *args_trat_msg){
     } else if (mensaje.op == 4){
 		printf("DELETE FROM %s\n", mensaje.user_name);
 
-		// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
-		char op_name[7] = "DELETE\0";
-		print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
-
 		// Leer cotenido base de datos y obtener json
 		cJSON *json = read_json("data.json");
 		if (json == NULL){
@@ -322,6 +323,10 @@ void *tratar_mensaje(void *args_trat_msg){
 						resultado = 1;
 					}
 					else{
+						// LLAMAR A SERVIDOR RPC PARA QUE IMPRIMA LA PETICIÓN
+						char op_name[7] = "DELETE\0";
+						print_user_op(mensaje.user_name, op_name, mensaje.file_name, mensaje.time);
+
 						// Comprobamos si existe ese contenido
 						cJSON *array = cJSON_GetObjectItemCaseSensitive(json, mensaje.user_name);
 						int array_size = cJSON_GetArraySize(array);

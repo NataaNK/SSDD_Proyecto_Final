@@ -14,3 +14,5 @@
           en server.c (socket server), habrá que poner en marcha los dos 
           servidores en la msima IP
         
+¡PARA QUE FUNCIONE EL SERVIDOR SOCKET DEBE ESTAR DESPLEGADO EL SERVIDOR RPC
+PUESTO QUE LE HACE PETICIONES!
